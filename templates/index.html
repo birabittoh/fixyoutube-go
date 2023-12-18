@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:title" content="FixYouTube" />
+    <meta property="og:site_name" content="FixYouTube" />
+    <meta property="og:description" content="Embed YouTube videos on Telegram, Discord and more!" />
+    <title>FixYouTube</title>
+
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+</head>
+
+<body>
+    <main class="container" style="max-width: 35rem">
+        <hgroup>
+            <h1>FixYouTube</h1>
+            <h2>Embed YouTube videos on Telegram, Discord and more!</h2>
+        </hgroup>
+        <p>FixYouTube serves fixed YouTube video embeds. Heavily inspired by <a href="https://fxtwitter.com">fxtwitter.com</a> and <a href="https://ddinstagram.com">ddinstagram.com</a>.</p>
+
+        <section>
+            <header>
+                <h3 style="margin-bottom: 4px">How to Use</h3>
+                <p>Replace <code>www.youtube.com</code> or <code>youtu.be</code> with <span id="changeme">this domain</span> to fix embeds for short videos.</p>
+            </header>
+            <video
+                src="https://github.com/BiRabittoh/FixYouTube/assets/26506860/2896d39e-a86e-47ce-939a-785b73d11683"
+                style="width: 100%; max-height: 100%;" autoplay loop muted controls>
+                Your browser does not support the video tag.
+            </video>
+            <hr>
+            <small><a href="https://github.com/BiRabittoh/FixYouTube" target="_blank">Source code available in GitHub!</a></small>
+            <br>
+            <small>• YouTube is a trademark of Google LLC. This app is not affiliated with Google LLC.</small>
+        </section>
+    </main>
+    <script>
+        code = document.createElement('code');
+        code.innerText = window.location.host;
+        document.getElementById('changeme').replaceWith(code);
+    </script>
+</body>
+
+</html>
