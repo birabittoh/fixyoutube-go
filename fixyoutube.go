@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"time"
 
@@ -19,6 +20,7 @@ var templatesDirectory = "templates/"
 var indexTemplate = template.Must(template.ParseFiles(templatesDirectory + "index.html"))
 var videoTemplate = template.Must(template.ParseFiles(templatesDirectory + "video.html"))
 var blacklist = []string{"favicon.ico", "robots.txt"}
+var userAgentRegex = regexp.MustCompile(`bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	buf := &bytes.Buffer{}
@@ -37,6 +39,30 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 	//TODO: return a message
 }
 
+func videoHandler(videoId string, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
+
+	res := userAgentRegex.MatchString(r.UserAgent())
+	if !res {
+		url := "https://www.youtube.com/watch?v=" + videoId
+		http.Redirect(w, r, url, http.StatusMovedPermanently)
+		return
+	}
+
+	video, err := invidiousClient.GetVideo(videoId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	buf := &bytes.Buffer{}
+	err = videoTemplate.Execute(buf, video)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	buf.WriteTo(w)
+}
+
 func watchHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, err := url.Parse(r.URL.String())
@@ -45,23 +71,8 @@ func watchHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 			return
 		}
 
-		params := u.Query()
-		videoId := params.Get("v")
-
-		video, err := invidiousClient.GetVideo(videoId)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		buf := &bytes.Buffer{}
-		err = videoTemplate.Execute(buf, video)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		buf.WriteTo(w)
+		videoId := u.Query().Get("v")
+		videoHandler(videoId, invidiousClient, w, r)
 	}
 }
 
@@ -74,20 +85,7 @@ func shortHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 			return
 		}
 
-		video, err := invidiousClient.GetVideo(videoId)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		buf := &bytes.Buffer{}
-		err = videoTemplate.Execute(buf, video)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		buf.WriteTo(w)
+		videoHandler(videoId, invidiousClient, w, r)
 	}
 }
 
@@ -111,6 +109,13 @@ func main() {
 	r.HandleFunc("/watch", watchHandler(videoapi))
 	r.HandleFunc("/{videoId}", shortHandler(videoapi))
 	//TODO: r.HandleFunc("/proxy/{videoId}", proxyHandler)
+	//TODO: check user agent before serving templates.
+
+	/*
+		UA_REGEX = r"bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node"
+		PROXY_HEADERS_REQUEST = { "Range": f"bytes=0-{MAX_SIZE_MB}000000" }
+		PROXY_HEADERS_RESPONSE = { "Content-Type": "video/mp4" }
+	*/
 
 	/*
 		// native go implementation (useless until february 2024)
