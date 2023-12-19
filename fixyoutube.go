@@ -20,7 +20,7 @@ var templatesDirectory = "templates/"
 var indexTemplate = template.Must(template.ParseFiles(templatesDirectory + "index.html"))
 var videoTemplate = template.Must(template.ParseFiles(templatesDirectory + "video.html"))
 var blacklist = []string{"favicon.ico", "robots.txt"}
-var userAgentRegex = regexp.MustCompile(`bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
+var userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
 var apiKey string
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -57,9 +57,10 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func videoHandler(videoId string, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
-
-	res := userAgentRegex.MatchString(r.UserAgent())
+	userAgent := r.UserAgent()
+	res := userAgentRegex.MatchString(userAgent)
 	if !res {
+		log.Println("Regex did not match. Redirecting. UA:", userAgent)
 		url := "https://www.youtube.com/watch?v=" + videoId
 		http.Redirect(w, r, url, http.StatusMovedPermanently)
 		return
@@ -117,7 +118,7 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("Error loading .env file")
+		log.Println("No .env file provided.")
 	}
 
 	port := os.Getenv("PORT")

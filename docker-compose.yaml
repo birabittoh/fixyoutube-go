@@ -4,6 +4,8 @@ services:
     image: ghcr.io/birabittoh/fixyoutube-go:main
     container_name: fixyoutube-go
     restart: unless-stopped
+    environment:
+      - API_KEY=${API_KEY}
   swag:
     image: ghcr.io/linuxserver/swag
     container_name: swag

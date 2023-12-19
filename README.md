@@ -6,9 +6,15 @@ Replace `www.youtube.com` or `youtu.be` with `y.outube.duckdns.org` to fix embed
 
 https://github.com/BiRabittoh/FixYouTube/assets/26506860/e1ad5397-41c8-4073-9b3e-598c66241255
 
-## Instructions (Docker)
+## Instructions
 
-### With reverse proxy
+First of all, you should set the API key to whatever you want:
+```
+cp .env.example .env
+nano .env
+```
+
+### Docker with reverse proxy
 Copy the template config file and make your adjustments. My configuration is based on [DuckDNS](http://duckdns.org/) but you can use whatever provider you find [here](https://docs.linuxserver.io/general/swag#docker-compose).
 
 ```
@@ -18,13 +24,13 @@ nano docker/swag.env
 
 Finally: `docker-compose up -d`.
 
-### Without reverse proxy
-Simply run:
+### Docker without reverse proxy
+Just run:
 ```
-docker run -d -p 3000:3000 --name fixyoutube-go --restart unless-stopped ghcr.io/birabittoh/fixyoutube-go:main
+docker-compose -f docker-compose.simple.yaml up -d
 ```
 
-## Instructions (local)
+## Test and debug locally
 ```
 go test -v ./...
 go run .
