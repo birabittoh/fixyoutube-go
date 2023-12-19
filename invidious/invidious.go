@@ -4,11 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 )
+
+var instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
+var videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
+var timeToLive, _ = time.ParseDuration("6h")
 
 type Client struct {
 	http     *http.Client
@@ -31,6 +38,7 @@ type Video struct {
 	Url           string
 	Height        int
 	Width         int
+	Timestamp     time.Time
 }
 
 func filter[T any](ss []T, test func(T) bool) (ret []T) {
@@ -50,13 +58,19 @@ func parseOrZero(number string) int {
 	return res
 }
 
-func (c *Client) FetchEverything(videoId string) (*Video, error) {
-	endpoint := fmt.Sprintf("https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams", c.Instance, url.QueryEscape(videoId))
+func (c *Client) FetchVideo(videoId string) (*Video, error) {
+	if c.Instance == "" {
+		err := c.NewInstance()
+		if err != nil {
+			log.Fatal(err, "Could not get a new instance.")
+			os.Exit(1)
+		}
+	}
+	endpoint := fmt.Sprintf(videosEndpoint, c.Instance, url.QueryEscape(videoId))
 	resp, err := c.http.Get(endpoint)
 	if err != nil {
 		return nil, err
 	}
-
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
@@ -86,6 +100,63 @@ func (c *Client) FetchEverything(videoId string) (*Video, error) {
 	return res, err
 }
 
-func NewClient(httpClient *http.Client, instance string) *Client {
-	return &Client{httpClient, instance}
+func (c *Client) GetVideo(videoId string) (*Video, error) {
+	log.Println("Video", videoId, "was requested.")
+
+	video, err := GetVideoDB(videoId)
+	if err == nil {
+		now := time.Now()
+		delta := now.Sub(video.Timestamp)
+		if delta < timeToLive {
+			log.Println("Found a valid cache entry from", delta, "ago.")
+			return video, nil
+		}
+	}
+
+	video, err = c.FetchVideo(videoId)
+	if err != nil {
+		log.Println(err)
+		err = c.NewInstance()
+		if err != nil {
+			log.Fatal("Could not get a new instance: ", err)
+			time.Sleep(10)
+		}
+		return c.GetVideo(videoId)
+	}
+	log.Println("Retrieved by API.")
+
+	CacheVideoDB(*video)
+	return video, nil
+}
+
+func (c *Client) NewInstance() error {
+	resp, err := c.http.Get(instancesEndpoint)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf(string(body))
+	}
+
+	var jsonArray [][]interface{}
+	err = json.Unmarshal(body, &jsonArray)
+	if err != nil {
+		return err
+	}
+
+	c.Instance = jsonArray[0][0].(string)
+	log.Println("Using new instance:", c.Instance)
+	return nil
+}
+
+func NewClient(httpClient *http.Client) *Client {
+	InitDB()
+	return &Client{httpClient, ""}
 }
