@@ -16,6 +16,7 @@ import (
 var instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
 var videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
 var timeToLive, _ = time.ParseDuration("6h")
+var maxSizeMB = 50
 
 type Client struct {
 	http     *http.Client
@@ -58,7 +59,7 @@ func parseOrZero(number string) int {
 	return res
 }
 
-func (c *Client) FetchVideo(videoId string) (*Video, error) {
+func (c *Client) fetchVideo(videoId string) (*Video, error) {
 	if c.Instance == "" {
 		err := c.NewInstance()
 		if err != nil {
@@ -113,7 +114,7 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 		}
 	}
 
-	video, err = c.FetchVideo(videoId)
+	video, err = c.fetchVideo(videoId)
 	if err != nil {
 		log.Println(err)
 		err = c.NewInstance()
@@ -154,6 +155,41 @@ func (c *Client) NewInstance() error {
 	c.Instance = jsonArray[0][0].(string)
 	log.Println("Using new instance:", c.Instance)
 	return nil
+}
+
+func (c *Client) ProxyVideo(videoId string, w http.ResponseWriter) error {
+	video, err := GetVideoDB(videoId)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, video.Url, nil)
+	if err != nil {
+		log.Fatal(err)
+		new_video, err := c.fetchVideo(videoId)
+		if err != nil {
+			log.Fatal("Url for", videoId, "expired:", err)
+			return err
+		}
+		return c.ProxyVideo(new_video.VideoId, w)
+	}
+
+	req.Header.Add("Range", fmt.Sprintf("bytes=0-%d000000", maxSizeMB))
+	resp, err := c.http.Do(req)
+	if err != nil {
+		log.Fatal(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err
+	}
+	defer resp.Body.Close()
+
+	w.Header().Set("content-type", "video/mp4")
+	w.Header().Set("Status", "206") // Partial Content
+
+	i, err := io.Copy(w, resp.Body)
+	fmt.Println(i, err)
+	return err
 }
 
 func NewClient(httpClient *http.Client) *Client {

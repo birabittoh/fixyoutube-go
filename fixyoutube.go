@@ -21,6 +21,7 @@ var indexTemplate = template.Must(template.ParseFiles(templatesDirectory + "inde
 var videoTemplate = template.Must(template.ParseFiles(templatesDirectory + "video.html"))
 var blacklist = []string{"favicon.ico", "robots.txt"}
 var userAgentRegex = regexp.MustCompile(`bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
+var apiKey string
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	buf := &bytes.Buffer{}
@@ -34,9 +35,25 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func clearHandler(w http.ResponseWriter, r *http.Request) {
-	//TODO: check with some secret API key before clearing cache.
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	providedKey := r.PostForm.Get("apiKey")
+	if providedKey != apiKey {
+		http.Error(w, "Wrong or missing API key.", http.StatusForbidden)
+		return
+	}
+
 	invidious.ClearDB()
-	//TODO: return a message
+	http.Error(w, "Done.", http.StatusOK)
 }
 
 func videoHandler(videoId string, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
@@ -89,6 +106,14 @@ func shortHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	}
 }
 
+func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		videoId := mux.Vars(r)["videoId"]
+
+		invidiousClient.ProxyVideo(videoId, w)
+	}
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
@@ -100,6 +125,11 @@ func main() {
 		port = "3000"
 	}
 
+	apiKey = os.Getenv("API_KEY")
+	if apiKey == "" {
+		apiKey = "itsme"
+	}
+
 	myClient := &http.Client{Timeout: 10 * time.Second}
 	videoapi := invidious.NewClient(myClient)
 
@@ -108,15 +138,7 @@ func main() {
 	r.HandleFunc("/clear", clearHandler)
 	r.HandleFunc("/watch", watchHandler(videoapi))
 	r.HandleFunc("/{videoId}", shortHandler(videoapi))
-	//TODO: r.HandleFunc("/proxy/{videoId}", proxyHandler)
-	//TODO: check user agent before serving templates.
-
-	/*
-		UA_REGEX = r"bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node"
-		PROXY_HEADERS_REQUEST = { "Range": f"bytes=0-{MAX_SIZE_MB}000000" }
-		PROXY_HEADERS_RESPONSE = { "Content-Type": "video/mp4" }
-	*/
-
+	r.HandleFunc("/proxy/{videoId}", proxyHandler(videoapi))
 	/*
 		// native go implementation (useless until february 2024)
 		r := http.NewServeMux()
