@@ -27,7 +27,8 @@ var clearQuery = "DELETE FROM videos;"
 func getDb(mode string) *sql.DB {
 	db, err := sql.Open("sqlite3", dbConnectionString+mode)
 	if err != nil {
-		log.Fatal("Error opening database")
+		log.Println("Could not open DB:", err)
+		return nil
 	}
 	db.SetMaxOpenConns(1)
 	return db
@@ -50,13 +51,14 @@ func CacheVideoDB(v Video) {
 
 	stmt, err := db.Prepare(cacheVideoQuery)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Could not cache video:", err)
+		return
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Height, v.Width, v.Url)
 	if err != nil {
-		log.Printf("%q: %s\n", err, cacheVideoQuery)
+		log.Println("Could not cache video:", err)
 		return
 	}
 }
@@ -67,15 +69,16 @@ func GetVideoDB(videoId string) (*Video, error) {
 
 	stmt, err := db.Prepare(getVideoQuery)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Could not get video:", err)
+		return nil, err
 	}
 	defer stmt.Close()
 
 	t := &Video{}
 	err = stmt.QueryRow(videoId).Scan(&t.VideoId, &t.Title, &t.Description, &t.Uploader, &t.Duration, &t.Height, &t.Width, &t.Url, &t.Timestamp)
 	if err != nil {
-		//log.Printf("%q: %s\n", err, getVideoQuery)
-		return &Video{}, err
+		log.Println("Could not get video:", err)
+		return nil, err
 	}
 	return t, nil
 }
@@ -86,13 +89,14 @@ func ClearDB() {
 
 	stmt, err := db.Prepare(clearQuery)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Could not clear DB:", err)
+		return
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec()
 	if err != nil {
-		log.Printf("%q: %s\n", err, cacheVideoQuery)
+		log.Println("Could not clear DB:", err)
 		return
 	}
 }
