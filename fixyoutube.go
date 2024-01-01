@@ -24,6 +24,15 @@ var blacklist = []string{"favicon.ico", "robots.txt", "proxy"}
 var userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
 var apiKey string
 
+func parseFormatIndex(formatIndexString string) int {
+	formatIndex, err := strconv.Atoi(formatIndexString)
+	if err != nil || formatIndex < 0 {
+		log.Println("Error: could not parse formatIndex.")
+		return 0
+	}
+	return formatIndex
+}
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	buf := &bytes.Buffer{}
 	err := indexTemplate.Execute(buf, nil)
@@ -91,26 +100,18 @@ func watchHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		videoId := u.Query().Get("v")
-		videoHandler(videoId, 0, invidiousClient, w, r)
+		q := u.Query()
+		videoId := q.Get("v")
+		formatIndex := parseFormatIndex(q.Get("f"))
+		videoHandler(videoId, formatIndex, invidiousClient, w, r)
 	}
-}
-
-func parseFormatIndex(vars map[string]string) int {
-	formatIndex, err := strconv.Atoi(vars["formatIndex"])
-	if err != nil {
-		log.Println("Error: could not parse formatIndex.")
-		return 0
-	}
-	return formatIndex
 }
 
 func shortHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		videoId := vars["videoId"]
-		formatIndex := parseFormatIndex(vars)
+		formatIndex := parseFormatIndex(vars["formatIndex"])
 
 		if slices.Contains(blacklist, videoId) {
 			http.Error(w, "Not a valid ID.", http.StatusBadRequest)
@@ -125,7 +126,7 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		videoId := vars["videoId"]
-		formatIndex := parseFormatIndex(vars)
+		formatIndex := parseFormatIndex(vars["formatIndex"])
 		invidiousClient.ProxyVideo(w, videoId, formatIndex)
 	}
 }
