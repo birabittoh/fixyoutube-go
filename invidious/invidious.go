@@ -163,8 +163,9 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex i
 		return err
 	}
 
-	idx := formatIndex % len(video.Formats)
-	url := video.Formats[len(video.Formats)-1-idx].Url
+	fmtAmount := len(video.Formats)
+	idx := formatIndex % fmtAmount
+	url := video.Formats[fmtAmount-1-idx].Url
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -188,8 +189,16 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex i
 	w.Header().Set("content-type", "video/mp4")
 	w.Header().Set("Status", "200")
 
-	i, err := io.Copy(w, resp.Body)
-	fmt.Println(i, err)
+	_, err = io.Copy(w, resp.Body)
+	if err == nil { // done
+		return nil
+	}
+
+	newIndex := formatIndex + 1
+	if newIndex < fmtAmount {
+		return c.ProxyVideo(w, videoId, newIndex)
+	}
+
 	return err
 }
 
