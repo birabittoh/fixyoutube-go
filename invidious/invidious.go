@@ -1,6 +1,7 @@
 package invidious
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -196,9 +197,11 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex i
 	w.Header().Set("content-type", "video/mp4")
 	w.Header().Set("Status", "200")
 
-	_, err = io.Copy(w, resp.Body)
+	temp := bytes.NewBuffer(nil)
+	_, err = io.Copy(temp, resp.Body)
 	if err == nil { // done
-		return nil
+		_, err2 := io.Copy(w, temp)
+		return err2
 	}
 
 	newIndex := formatIndex + 1
