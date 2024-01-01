@@ -200,15 +200,15 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex i
 	temp := bytes.NewBuffer(nil)
 	_, err = io.Copy(temp, resp.Body)
 	if err == nil { // done
-		_, err2 := io.Copy(w, temp)
-		return err2
+		_, err = io.Copy(w, temp)
+		return err
 	}
 
 	newIndex := formatIndex + 1
 	if newIndex < fmtAmount {
 		return c.ProxyVideo(w, videoId, newIndex)
 	}
-
+	_, err = io.Copy(w, temp)
 	return err
 }
 
