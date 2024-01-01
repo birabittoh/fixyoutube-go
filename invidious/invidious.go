@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -17,7 +17,7 @@ const maxSizeMB = 50
 const instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
 const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
 
-var timeToLive, _ = time.ParseDuration("6h")
+var expireRegex = regexp.MustCompile(`(?i)expire=(\d+)`)
 
 type Client struct {
 	http     *http.Client
@@ -42,6 +42,7 @@ type Video struct {
 	Duration    int      `json:"lengthSeconds"`
 	Formats     []Format `json:"formatStreams"`
 	Timestamp   time.Time
+	Expire      time.Time
 	FormatIndex int
 }
 
@@ -95,11 +96,13 @@ func (c *Client) fetchVideo(videoId string) (*Video, error) {
 	mp4Test := func(f Format) bool { return f.Container == "mp4" }
 	res.Formats = filter(res.Formats, mp4Test)
 
-	for _, f := range res.Formats {
-		s := strings.Split(f.Size, "x")
-		f.Width = parseOrZero(s[0])
-		f.Height = parseOrZero(s[1])
+	expireString := expireRegex.FindStringSubmatch(res.Formats[0].Url)
+	expireTimestamp, err := strconv.ParseInt(expireString[1], 10, 64)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, err
 	}
+	res.Expire = time.Unix(expireTimestamp, 0)
 
 	return res, err
 }
@@ -114,12 +117,16 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 	}
 
 	video, err = c.fetchVideo(videoId)
+
 	if err != nil {
+		if err.Error() == "{}" {
+			return nil, err
+		}
 		log.Println(err)
 		err = c.NewInstance()
 		if err != nil {
 			log.Fatal("Could not get a new instance: ", err)
-			time.Sleep(10)
+			time.Sleep(10 * time.Second)
 		}
 		return c.GetVideo(videoId)
 	}

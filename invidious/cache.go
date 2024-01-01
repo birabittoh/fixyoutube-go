@@ -2,8 +2,8 @@ package invidious
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -47,7 +47,7 @@ func CacheVideoDB(v Video) {
 	}
 	defer cacheVideo.Close()
 
-	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration)
+	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Expire)
 	if err != nil {
 		log.Println("Could not cache video:", err)
 		return
@@ -81,11 +81,15 @@ func GetVideoDB(videoId string) (*Video, error) {
 	defer getVideo.Close()
 
 	v := &Video{}
-	sixHoursAgo := time.Now().Add(-6 * time.Hour)
-	err = getVideo.QueryRow(videoId, sixHoursAgo).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &sql.NullString{})
+	err = getVideo.QueryRow(videoId).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &v.Timestamp, &v.Expire)
 	if err != nil {
 		log.Println("Could not get video:", err)
 		return nil, err
+	}
+
+	if v.Timestamp.After(v.Expire) {
+		log.Println("Video has expired.")
+		return nil, fmt.Errorf("expired")
 	}
 
 	getFormat, err := db.Prepare(getFormatQuery)

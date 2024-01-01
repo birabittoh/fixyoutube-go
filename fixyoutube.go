@@ -78,7 +78,7 @@ func videoHandler(videoId string, formatIndex int, invidiousClient *invidious.Cl
 
 	video, err := invidiousClient.GetVideo(videoId)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Wrong Video ID.", http.StatusBadRequest)
 		return
 	}
 
