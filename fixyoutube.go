@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/BiRabittoh/fixyoutube-go/invidious"
@@ -19,7 +20,7 @@ import (
 var templatesDirectory = "templates/"
 var indexTemplate = template.Must(template.ParseFiles(templatesDirectory + "index.html"))
 var videoTemplate = template.Must(template.ParseFiles(templatesDirectory + "video.html"))
-var blacklist = []string{"favicon.ico", "robots.txt"}
+var blacklist = []string{"favicon.ico", "robots.txt", "proxy"}
 var userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
 var apiKey string
 
@@ -56,7 +57,7 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Done.", http.StatusOK)
 }
 
-func videoHandler(videoId string, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
+func videoHandler(videoId string, formatIndex int, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
 	userAgent := r.UserAgent()
 	res := userAgentRegex.MatchString(userAgent)
 	if !res {
@@ -71,6 +72,8 @@ func videoHandler(videoId string, invidiousClient *invidious.Client, w http.Resp
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	video.FormatIndex = formatIndex % len(video.Formats)
 
 	buf := &bytes.Buffer{}
 	err = videoTemplate.Execute(buf, video)
@@ -90,28 +93,40 @@ func watchHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		}
 
 		videoId := u.Query().Get("v")
-		videoHandler(videoId, invidiousClient, w, r)
+		videoHandler(videoId, 0, invidiousClient, w, r)
 	}
+}
+
+func parseFormatIndex(vars map[string]string) int {
+	formatIndex, err := strconv.Atoi(vars["formatIndex"])
+	if err != nil {
+		log.Println("Error: could not parse formatIndex.")
+		return 0
+	}
+	return formatIndex
 }
 
 func shortHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		videoId := mux.Vars(r)["videoId"]
+		vars := mux.Vars(r)
+		videoId := vars["videoId"]
+		formatIndex := parseFormatIndex(vars)
 
 		if slices.Contains(blacklist, videoId) {
 			http.Error(w, "Not a valid ID.", http.StatusBadRequest)
 			return
 		}
 
-		videoHandler(videoId, invidiousClient, w, r)
+		videoHandler(videoId, formatIndex, invidiousClient, w, r)
 	}
 }
 
 func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		videoId := mux.Vars(r)["videoId"]
-
-		invidiousClient.ProxyVideo(videoId, w)
+		vars := mux.Vars(r)
+		videoId := vars["videoId"]
+		formatIndex := parseFormatIndex(vars)
+		invidiousClient.ProxyVideo(w, videoId, formatIndex)
 	}
 }
 
@@ -138,8 +153,10 @@ func main() {
 	r.HandleFunc("/", indexHandler)
 	r.HandleFunc("/clear", clearHandler)
 	r.HandleFunc("/watch", watchHandler(videoapi))
-	r.HandleFunc("/{videoId}", shortHandler(videoapi))
 	r.HandleFunc("/proxy/{videoId}", proxyHandler(videoapi))
+	r.HandleFunc("/proxy/{videoId}/{formatIndex}", proxyHandler(videoapi))
+	r.HandleFunc("/{videoId}", shortHandler(videoapi))
+	r.HandleFunc("/{videoId}/{formatIndex}", shortHandler(videoapi))
 	/*
 		// native go implementation (useless until february 2024)
 		r := http.NewServeMux()

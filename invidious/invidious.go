@@ -13,10 +13,11 @@ import (
 	"time"
 )
 
-var instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
-var videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
+const maxSizeMB = 50
+const instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
+const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
+
 var timeToLive, _ = time.ParseDuration("6h")
-var maxSizeMB = 50
 
 type Client struct {
 	http     *http.Client
@@ -24,22 +25,24 @@ type Client struct {
 }
 
 type Format struct {
+	VideoId   string
+	Name      string `json:"qualityLabel"`
+	Height    int
+	Width     int
 	Url       string `json:"url"`
 	Container string `json:"container"`
 	Size      string `json:"size"`
 }
 
 type Video struct {
-	VideoId       string   `json:"videoId"`
-	Title         string   `json:"title"`
-	Description   string   `json:"description"`
-	Uploader      string   `json:"author"`
-	Duration      int      `json:"lengthSeconds"`
-	FormatStreams []Format `json:"formatStreams"`
-	Url           string
-	Height        int
-	Width         int
-	Timestamp     time.Time
+	VideoId     string   `json:"videoId"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Uploader    string   `json:"author"`
+	Duration    int      `json:"lengthSeconds"`
+	Formats     []Format `json:"formatStreams"`
+	Timestamp   time.Time
+	FormatIndex int
 }
 
 func filter[T any](ss []T, test func(T) bool) (ret []T) {
@@ -90,13 +93,13 @@ func (c *Client) fetchVideo(videoId string) (*Video, error) {
 	}
 
 	mp4Test := func(f Format) bool { return f.Container == "mp4" }
-	mp4Formats := filter(res.FormatStreams, mp4Test)
-	myFormat := mp4Formats[len(mp4Formats)-1]
-	mySize := strings.Split(myFormat.Size, "x")
+	res.Formats = filter(res.Formats, mp4Test)
 
-	res.Url = myFormat.Url
-	res.Width = parseOrZero(mySize[0])
-	res.Height = parseOrZero(mySize[1])
+	for _, f := range res.Formats {
+		s := strings.Split(f.Size, "x")
+		f.Width = parseOrZero(s[0])
+		f.Height = parseOrZero(s[1])
+	}
 
 	return res, err
 }
@@ -106,12 +109,8 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 
 	video, err := GetVideoDB(videoId)
 	if err == nil {
-		now := time.Now()
-		delta := now.Sub(video.Timestamp)
-		if delta < timeToLive {
-			log.Println("Found a valid cache entry from", delta, "ago.")
-			return video, nil
-		}
+		log.Println("Found a valid cache entry.")
+		return video, nil
 	}
 
 	video, err = c.fetchVideo(videoId)
@@ -157,14 +156,16 @@ func (c *Client) NewInstance() error {
 	return nil
 }
 
-func (c *Client) ProxyVideo(videoId string, w http.ResponseWriter) error {
+func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex int) error {
 	video, err := GetVideoDB(videoId)
 	if err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, video.Url, nil)
+	idx := formatIndex % len(video.Formats)
+	url := video.Formats[len(video.Formats)-1-idx].Url
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		log.Fatal(err)
 		new_video, err := c.fetchVideo(videoId)
@@ -172,7 +173,7 @@ func (c *Client) ProxyVideo(videoId string, w http.ResponseWriter) error {
 			log.Fatal("Url for", videoId, "expired:", err)
 			return err
 		}
-		return c.ProxyVideo(new_video.VideoId, w)
+		return c.ProxyVideo(w, new_video.VideoId, formatIndex)
 	}
 
 	req.Header.Add("Range", fmt.Sprintf("bytes=0-%d000000", maxSizeMB))
@@ -185,7 +186,7 @@ func (c *Client) ProxyVideo(videoId string, w http.ResponseWriter) error {
 	defer resp.Body.Close()
 
 	w.Header().Set("content-type", "video/mp4")
-	w.Header().Set("Status", "206") // Partial Content
+	w.Header().Set("Status", "200")
 
 	i, err := io.Copy(w, resp.Body)
 	fmt.Println(i, err)

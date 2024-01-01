@@ -3,26 +3,12 @@ package invidious
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var dbConnectionString = "file:cache.sqlite?cache=shared&mode="
-var createQuery = `
-CREATE TABLE IF NOT EXISTS videos (
-    videoId TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    uploader TEXT NOT NULL,
-    duration int NOT NULL,
-    height TEXT NOT NULL,
-    width TEXT NOT NULL,
-    url TEXT,
-    timestamp DATETIME DEFAULT (datetime('now'))
-);`
-var getVideoQuery = "SELECT * FROM videos WHERE videoId = (?);"
-var cacheVideoQuery = "INSERT OR REPLACE INTO videos (videoId, title, description, uploader, duration, height, width, url) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"
-var clearQuery = "DELETE FROM videos;"
+const dbConnectionString = "file:cache.sqlite?cache=shared&mode="
 
 func getDb(mode string) *sql.DB {
 	db, err := sql.Open("sqlite3", dbConnectionString+mode)
@@ -38,9 +24,14 @@ func InitDB() {
 	db := getDb("rwc")
 	defer db.Close()
 
-	_, err := db.Exec(createQuery)
+	_, err := db.Exec(createQueryVideos)
 	if err != nil {
-		log.Printf("%q: %s\n", err, createQuery)
+		log.Printf("%q: %s\n", err, createQueryVideos)
+		return
+	}
+	_, err = db.Exec(createQueryFormats)
+	if err != nil {
+		log.Printf("%q: %s\n", err, createQueryFormats)
 		return
 	}
 }
@@ -49,17 +40,32 @@ func CacheVideoDB(v Video) {
 	db := getDb("rw")
 	defer db.Close()
 
-	stmt, err := db.Prepare(cacheVideoQuery)
+	cacheVideo, err := db.Prepare(cacheVideoQuery)
 	if err != nil {
 		log.Println("Could not cache video:", err)
 		return
 	}
-	defer stmt.Close()
+	defer cacheVideo.Close()
 
-	_, err = stmt.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Height, v.Width, v.Url)
+	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration)
 	if err != nil {
 		log.Println("Could not cache video:", err)
 		return
+	}
+
+	for _, f := range v.Formats {
+		cacheFormat, err := db.Prepare(cacheFormatQuery)
+		if err != nil {
+			log.Println("Could not cache format:", err)
+			return
+		}
+		defer cacheVideo.Close()
+
+		_, err = cacheFormat.Exec(v.VideoId, f.Name, f.Height, f.Width, f.Url)
+		if err != nil {
+			log.Println("Could not cache format:", err)
+			return
+		}
 	}
 }
 
@@ -67,20 +73,46 @@ func GetVideoDB(videoId string) (*Video, error) {
 	db := getDb("ro")
 	defer db.Close()
 
-	stmt, err := db.Prepare(getVideoQuery)
+	getVideo, err := db.Prepare(getVideoQuery)
 	if err != nil {
 		log.Println("Could not get video:", err)
 		return nil, err
 	}
-	defer stmt.Close()
+	defer getVideo.Close()
 
-	t := &Video{}
-	err = stmt.QueryRow(videoId).Scan(&t.VideoId, &t.Title, &t.Description, &t.Uploader, &t.Duration, &t.Height, &t.Width, &t.Url, &t.Timestamp)
+	v := &Video{}
+	sixHoursAgo := time.Now().Add(-6 * time.Hour)
+	err = getVideo.QueryRow(videoId, sixHoursAgo).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &sql.NullString{})
 	if err != nil {
 		log.Println("Could not get video:", err)
 		return nil, err
 	}
-	return t, nil
+
+	getFormat, err := db.Prepare(getFormatQuery)
+	if err != nil {
+		log.Println("Could not get video:", err)
+		return nil, err
+	}
+	defer getFormat.Close()
+
+	response, err := getFormat.Query(videoId)
+	if err != nil {
+		log.Println("Could not get formats:", err)
+		return nil, err
+	}
+	defer response.Close()
+
+	for response.Next() {
+		f := Format{}
+		err := response.Scan(&f.VideoId, &f.Name, &f.Height, &f.Width, &f.Url)
+		if err != nil {
+			log.Println("Could not get formats:", err)
+			return nil, err
+		}
+		v.Formats = append(v.Formats, f)
+	}
+
+	return v, nil
 }
 
 func ClearDB() {
