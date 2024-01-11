@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const timeoutDuration = 10 * time.Minute
 const maxSizeMB = 50
 const instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
 const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
@@ -21,8 +22,14 @@ const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,descrip
 var expireRegex = regexp.MustCompile(`(?i)expire=(\d+)`)
 var logger = logrus.New()
 
+type Timeout struct {
+	Instance  string
+	Timestamp time.Time
+}
+
 type Client struct {
 	http     *http.Client
+	timeouts []Timeout
 	Instance string
 }
 
@@ -137,7 +144,25 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 	return video, nil
 }
 
+func (c *Client) isNotTimedOut(instance string) bool {
+	for i := range c.timeouts {
+		cur := c.timeouts[i]
+		if instance == cur.Instance {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *Client) NewInstance() error {
+	now := time.Now()
+
+	timeoutsTest := func(t Timeout) bool { return now.Sub(t.Timestamp) < timeoutDuration }
+	c.timeouts = filter(c.timeouts, timeoutsTest)
+
+	timeout := Timeout{c.Instance, now}
+	c.timeouts = append(c.timeouts, timeout)
+
 	resp, err := c.http.Get(instancesEndpoint)
 	if err != nil {
 		return err
@@ -159,9 +184,18 @@ func (c *Client) NewInstance() error {
 		return err
 	}
 
-	c.Instance = jsonArray[0][0].(string)
-	logger.Info("Using new instance:", c.Instance)
-	return nil
+	for i := range jsonArray {
+		instance := jsonArray[i][0].(string)
+		instanceTest := func(t Timeout) bool { return t.Instance == instance }
+		result := filter(c.timeouts, instanceTest)
+		if len(result) == 0 {
+			c.Instance = instance
+			logger.Info("Using new instance: ", c.Instance)
+			return nil
+		}
+	}
+	logger.Error("Cannot find a valid instance.")
+	return err
 }
 
 func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex int) error {
@@ -215,5 +249,9 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex i
 
 func NewClient(httpClient *http.Client) *Client {
 	InitDB()
-	return &Client{httpClient, ""}
+	return &Client{
+		http:     httpClient,
+		timeouts: []Timeout{},
+		Instance: "",
+	}
 }
