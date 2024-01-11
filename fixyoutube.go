@@ -17,11 +17,14 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var templatesDirectory = "templates/"
+const templatesDirectory = "templates/"
+
 var indexTemplate = template.Must(template.ParseFiles(templatesDirectory + "index.html"))
 var videoTemplate = template.Must(template.ParseFiles(templatesDirectory + "video.html"))
 var blacklist = []string{"favicon.ico", "robots.txt", "proxy"}
 var userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
+var videoRegex = regexp.MustCompile(`^(?i)[a-z0-9_-]{11}$`)
+
 var apiKey string
 
 func parseFormatIndex(formatIndexString string) int {
@@ -76,9 +79,14 @@ func videoHandler(videoId string, formatIndex int, invidiousClient *invidious.Cl
 		return
 	}
 
+	if !videoRegex.MatchString(videoId) {
+		http.Error(w, "Bad Video ID.", http.StatusBadRequest)
+		return
+	}
+
 	video, err := invidiousClient.GetVideo(videoId)
 	if err != nil {
-		http.Error(w, "Wrong Video ID.", http.StatusBadRequest)
+		http.Error(w, "Wrong Video ID.", http.StatusNotFound)
 		return
 	}
 
