@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const maxSizeMB = 50
@@ -19,6 +19,7 @@ const instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,t
 const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
 
 var expireRegex = regexp.MustCompile(`(?i)expire=(\d+)`)
+var logger = logrus.New()
 
 type Client struct {
 	http     *http.Client
@@ -68,8 +69,7 @@ func (c *Client) fetchVideo(videoId string) (*Video, error) {
 	if c.Instance == "" {
 		err := c.NewInstance()
 		if err != nil {
-			log.Fatal(err, "Could not get a new instance.")
-			os.Exit(1)
+			logger.Fatal(err, "Could not get a new instance.")
 		}
 	}
 	endpoint := fmt.Sprintf(videosEndpoint, c.Instance, url.QueryEscape(videoId))
@@ -109,11 +109,11 @@ func (c *Client) fetchVideo(videoId string) (*Video, error) {
 }
 
 func (c *Client) GetVideo(videoId string) (*Video, error) {
-	log.Println("Video", videoId, "was requested.")
+	logger.Info("Video https://youtu.be/", videoId, " was requested.")
 
 	video, err := GetVideoDB(videoId)
 	if err == nil {
-		log.Println("Found a valid cache entry.")
+		logger.Info("Found a valid cache entry.")
 		return video, nil
 	}
 
@@ -123,15 +123,15 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 		if err.Error() == "{}" {
 			return nil, err
 		}
-		log.Println(err)
+		logger.Error(err)
 		err = c.NewInstance()
 		if err != nil {
-			log.Fatal("Could not get a new instance: ", err)
+			logger.Error("Could not get a new instance: ", err)
 			time.Sleep(10 * time.Second)
 		}
 		return c.GetVideo(videoId)
 	}
-	log.Println("Retrieved by API.")
+	logger.Info("Retrieved by API.")
 
 	CacheVideoDB(*video)
 	return video, nil
@@ -160,13 +160,14 @@ func (c *Client) NewInstance() error {
 	}
 
 	c.Instance = jsonArray[0][0].(string)
-	log.Println("Using new instance:", c.Instance)
+	logger.Info("Using new instance:", c.Instance)
 	return nil
 }
 
 func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex int) error {
 	video, err := GetVideoDB(videoId)
 	if err != nil {
+		logger.Debug("Cannot proxy a video that is not cached: https://youtu.be/", videoId)
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return err
 	}
@@ -176,10 +177,10 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex i
 	url := video.Formats[fmtAmount-1-idx].Url
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err)
 		new_video, err := c.fetchVideo(videoId)
 		if err != nil {
-			log.Fatal("Url for", videoId, "expired:", err)
+			logger.Error("Url for", videoId, "expired:", err)
 			return err
 		}
 		return c.ProxyVideo(w, new_video.VideoId, formatIndex)
@@ -188,7 +189,7 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex i
 	req.Header.Add("Range", fmt.Sprintf("bytes=0-%d000000", maxSizeMB))
 	resp, err := c.http.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return err
 	}
