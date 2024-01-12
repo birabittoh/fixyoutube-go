@@ -22,7 +22,7 @@ var logger = logrus.New()
 var indexTemplate = template.Must(template.ParseFiles(templatesDirectory + "index.html"))
 var videoTemplate = template.Must(template.ParseFiles(templatesDirectory + "video.html"))
 var userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
-var videoRegex = regexp.MustCompile(`^(?i)[a-z0-9_-]{11}$`)
+var videoRegex = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
 
 var apiKey string
 
