@@ -1,6 +1,7 @@
 package invidious
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -221,48 +222,33 @@ func (c *Client) NewInstance() error {
 	return err
 }
 
-func (c *Client) ProxyVideo(w http.ResponseWriter, r *http.Request, videoId string, formatIndex int) int {
-	video, err := GetVideoDB(videoId)
-	if err != nil {
-		logger.Warn("Cannot proxy a video that is not cached: https://youtu.be/", videoId)
-		return http.StatusBadRequest
-	}
+func (c *Client) ProxyVideo(url string, formatIndex int) (*bytes.Buffer, int64, int) {
 
-	fmtAmount := len(video.Formats)
-	idx := formatIndex % fmtAmount
-	url := video.Formats[fmtAmount-1-idx].Url
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		logger.Error(err)
-		new_video, err := c.GetVideo(videoId, false)
-		if err != nil {
-			logger.Error("Cannot get new data for video ", videoId, ":", err)
-			return http.StatusInternalServerError
-		}
-		return c.ProxyVideo(w, r, new_video.VideoId, formatIndex)
+		logger.Error(err) // bad request
+		return nil, 0, http.StatusInternalServerError
 	}
 
-	resp, err := c.http.Do(req) // send video request
+	resp, err := c.http.Do(req)
 	if err != nil {
-		logger.Error(err)
-		return http.StatusInternalServerError
+		logger.Error(err) // request failed
+		return nil, 0, http.StatusGone
 	}
 
 	if resp.ContentLength > maxSizeBytes {
-		newIndex := formatIndex + 1
-		if newIndex < fmtAmount {
-			logger.Debug("Format ", newIndex, ": Content-Length exceeds max size. Trying another format.")
-			return c.ProxyVideo(w, r, videoId, newIndex)
-		}
-		logger.Error("Could not find a suitable format.")
-		return http.StatusBadRequest
+		logger.Debug("Format ", formatIndex, ": Content-Length exceeds max size.")
+		return nil, 0, http.StatusBadRequest
 	}
 	defer resp.Body.Close()
 
-	w.Header().Set("Content-Type", "video/mp4")
-	w.Header().Set("Status", "200")
-	_, err = io.Copy(w, resp.Body)
-	return http.StatusOK
+	b := new(bytes.Buffer)
+	l, err := io.Copy(b, resp.Body)
+	if l != resp.ContentLength {
+		return nil, 0, http.StatusBadRequest
+	}
+
+	return b, l, http.StatusOK
 }
 
 func NewClient(httpClient *http.Client) *Client {

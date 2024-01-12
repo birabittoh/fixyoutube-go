@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -136,15 +137,43 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		vars := mux.Vars(r)
 		videoId := vars["videoId"]
 		formatIndex := parseFormatIndex(vars["formatIndex"])
-		httpStatus := invidiousClient.ProxyVideo(w, r, videoId, formatIndex)
-		if httpStatus != http.StatusOK {
-			logger.Error("c.ProxyVideo() failed. Code: ", httpStatus)
-			http.Error(w, "Something went wrong.", httpStatus)
+
+		video, err := invidious.GetVideoDB(videoId)
+		if err != nil {
+			logger.Warn("Cannot proxy a video that is not cached: https://youtu.be/", videoId)
+			http.Error(w, "Something went wrong.", http.StatusBadRequest)
+			return
 		}
+
+		fmtAmount := len(video.Formats)
+		idx := formatIndex % fmtAmount
+
+		var httpStatus = http.StatusNotFound
+
+		for i := fmtAmount - 1 - idx; i >= 0; i-- {
+			url := video.Formats[i].Url
+			b, l, httpStatus := invidiousClient.ProxyVideo(url, formatIndex)
+			switch httpStatus {
+			case http.StatusOK:
+				header := w.Header()
+				header.Set("Status", "200")
+				header.Set("Content-Type", "video/mp4")
+				header.Set("Content-Length", strconv.FormatInt(l, 10))
+				io.Copy(w, b)
+				return
+			case http.StatusBadRequest:
+				continue
+			default:
+				i = -1
+			}
+		}
+		logger.Error("proxyHandler() failed. Code: ", httpStatus)
+		http.Error(w, "Something went wrong.", httpStatus)
 	}
 }
 
 func main() {
+	logger.SetLevel(logrus.DebugLevel)
 	err := godotenv.Load()
 	if err != nil {
 		logger.Info("No .env file provided.")
