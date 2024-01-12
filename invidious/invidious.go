@@ -118,17 +118,21 @@ func (c *Client) fetchVideo(videoId string) (*Video, error) {
 		return nil, err
 	}
 	res.Expire = time.Unix(expireTimestamp, 0)
-
-	return res, err
+	return res, nil
 }
 
-func (c *Client) GetVideo(videoId string) (*Video, error) {
+func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 	logger.Info("Video https://youtu.be/", videoId, " was requested.")
 
-	video, err := GetVideoDB(videoId)
-	if err == nil {
-		logger.Info("Found a valid cache entry.")
-		return video, nil
+	var video *Video
+	var err error
+
+	if fromCache {
+		video, err = GetVideoDB(videoId)
+		if err == nil {
+			logger.Info("Found a valid cache entry.")
+			return video, nil
+		}
 	}
 
 	video, err = c.fetchVideo(videoId)
@@ -150,7 +154,7 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 			logger.Error("Could not get a new instance: ", err)
 			time.Sleep(10 * time.Second)
 		}
-		return c.GetVideo(videoId)
+		return c.GetVideo(videoId, true)
 	}
 	logger.Info("Retrieved by API.")
 
@@ -230,10 +234,10 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, r *http.Request, videoId stri
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		logger.Error(err)
-		new_video, err := c.fetchVideo(videoId)
+		new_video, err := c.GetVideo(videoId, false)
 		if err != nil {
-			logger.Error("Url for", videoId, "expired:", err)
-			return http.StatusGone
+			logger.Error("Cannot get new data for video ", videoId, ":", err)
+			return http.StatusInternalServerError
 		}
 		return c.ProxyVideo(w, r, new_video.VideoId, formatIndex)
 	}

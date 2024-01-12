@@ -88,7 +88,7 @@ func videoHandler(videoId string, formatIndex int, invidiousClient *invidious.Cl
 		return
 	}
 
-	video, err := invidiousClient.GetVideo(videoId)
+	video, err := invidiousClient.GetVideo(videoId, true)
 	if err != nil {
 		logger.Info("Wrong video ID: ", videoId)
 		http.Error(w, "Wrong video ID.", http.StatusNotFound)
