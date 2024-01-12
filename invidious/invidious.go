@@ -14,7 +14,7 @@ import (
 )
 
 const timeoutDuration = 10 * time.Minute
-const maxSizeBytes = 30000000 // 30 MB
+const maxSizeBytes = 20000000 // 20 MB
 const instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
 const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
 
