@@ -154,7 +154,11 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 	}
 	logger.Info("Retrieved by API.")
 
-	CacheVideoDB(*video)
+	err = CacheVideoDB(*video)
+	if err != nil {
+		logger.Warn("Could not cache video id: ", videoId)
+		logger.Warn(err)
+	}
 	return video, nil
 }
 

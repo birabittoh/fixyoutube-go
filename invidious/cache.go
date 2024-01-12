@@ -35,37 +35,38 @@ func InitDB() {
 	}
 }
 
-func CacheVideoDB(v Video) {
+func CacheVideoDB(v Video) error {
 	db := getDb("rw")
 	defer db.Close()
 
 	cacheVideo, err := db.Prepare(cacheVideoQuery)
 	if err != nil {
 		logger.Error("Could not cache video:", err)
-		return
+		return err
 	}
 	defer cacheVideo.Close()
 
 	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Expire)
 	if err != nil {
 		logger.Error("Could not cache video:", err)
-		return
+		return err
 	}
 
 	for _, f := range v.Formats {
 		cacheFormat, err := db.Prepare(cacheFormatQuery)
 		if err != nil {
 			logger.Error("Could not cache format:", err)
-			return
+			return err
 		}
 		defer cacheVideo.Close()
 
 		_, err = cacheFormat.Exec(v.VideoId, f.Name, f.Height, f.Width, f.Url)
 		if err != nil {
 			logger.Error("Could not cache format:", err)
-			return
+			return err
 		}
 	}
+	return nil
 }
 
 func GetVideoDB(videoId string) (*Video, error) {
