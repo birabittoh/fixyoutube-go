@@ -72,6 +72,14 @@ func parseOrZero(number string) int {
 	return res
 }
 
+type HTTPError struct {
+	StatusCode int
+}
+
+func (e HTTPError) Error() string {
+	return fmt.Sprintf("HTTP error: %d", e.StatusCode)
+}
+
 func (c *Client) fetchVideo(videoId string) (*Video, error) {
 	if c.Instance == "" {
 		err := c.NewInstance()
@@ -92,7 +100,7 @@ func (c *Client) fetchVideo(videoId string) (*Video, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(string(body))
+		return nil, HTTPError{resp.StatusCode}
 	}
 
 	res := &Video{}
@@ -127,9 +135,15 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 	video, err = c.fetchVideo(videoId)
 
 	if err != nil {
-		if err.Error() == "{}" {
-			return nil, err
+		if httpErr, ok := err.(HTTPError); ok {
+			// handle HTTPError
+			if httpErr.StatusCode == http.StatusNotFound {
+				logger.Debug("Video does not exist.")
+				return nil, err
+			}
+			logger.Debug("Invidious HTTP error: ", httpErr.StatusCode)
 		}
+		// handle generic error
 		logger.Error(err)
 		err = c.NewInstance()
 		if err != nil {
