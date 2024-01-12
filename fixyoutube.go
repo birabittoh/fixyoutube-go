@@ -136,7 +136,11 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		vars := mux.Vars(r)
 		videoId := vars["videoId"]
 		formatIndex := parseFormatIndex(vars["formatIndex"])
-		invidiousClient.ProxyVideo(w, videoId, formatIndex)
+		httpStatus := invidiousClient.ProxyVideo(w, r, videoId, formatIndex)
+		if httpStatus != http.StatusOK {
+			logger.Error("c.ProxyVideo() failed. Code: ", httpStatus)
+			http.Error(w, "Something went wrong.", httpStatus)
+		}
 	}
 }
 

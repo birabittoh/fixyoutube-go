@@ -1,7 +1,6 @@
 package invidious
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +14,7 @@ import (
 )
 
 const timeoutDuration = 10 * time.Minute
-const maxSizeMB = 50
+const maxSizeBytes = 30000000 // 30 MB
 const instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
 const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
 
@@ -137,7 +136,8 @@ func (c *Client) GetVideo(videoId string) (*Video, error) {
 	if err != nil {
 		if httpErr, ok := err.(HTTPError); ok {
 			// handle HTTPError
-			if httpErr.StatusCode == http.StatusNotFound {
+			s := httpErr.StatusCode
+			if s == http.StatusNotFound || s == http.StatusInternalServerError {
 				logger.Debug("Video does not exist.")
 				return nil, err
 			}
@@ -189,12 +189,13 @@ func (c *Client) NewInstance() error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf(string(body))
+		return HTTPError{resp.StatusCode}
 	}
 
 	var jsonArray [][]interface{}
 	err = json.Unmarshal(body, &jsonArray)
 	if err != nil {
+		logger.Error("Could not unmarshal JSON response for instances.")
 		return err
 	}
 
@@ -212,12 +213,11 @@ func (c *Client) NewInstance() error {
 	return err
 }
 
-func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex int) error {
+func (c *Client) ProxyVideo(w http.ResponseWriter, r *http.Request, videoId string, formatIndex int) int {
 	video, err := GetVideoDB(videoId)
 	if err != nil {
-		logger.Debug("Cannot proxy a video that is not cached: https://youtu.be/", videoId)
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return err
+		logger.Warn("Cannot proxy a video that is not cached: https://youtu.be/", videoId)
+		return http.StatusBadRequest
 	}
 
 	fmtAmount := len(video.Formats)
@@ -229,36 +229,32 @@ func (c *Client) ProxyVideo(w http.ResponseWriter, videoId string, formatIndex i
 		new_video, err := c.fetchVideo(videoId)
 		if err != nil {
 			logger.Error("Url for", videoId, "expired:", err)
-			return err
+			return http.StatusGone
 		}
-		return c.ProxyVideo(w, new_video.VideoId, formatIndex)
+		return c.ProxyVideo(w, r, new_video.VideoId, formatIndex)
 	}
 
-	req.Header.Add("Range", fmt.Sprintf("bytes=0-%d000000", maxSizeMB))
-	resp, err := c.http.Do(req)
+	resp, err := c.http.Do(req) // send video request
 	if err != nil {
 		logger.Error(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return http.StatusInternalServerError
+	}
+
+	if resp.ContentLength > maxSizeBytes {
+		newIndex := formatIndex + 1
+		if newIndex < fmtAmount {
+			logger.Debug("Format ", newIndex, ": Content-Length exceeds max size. Trying another format.")
+			return c.ProxyVideo(w, r, videoId, newIndex)
+		}
+		logger.Error("Could not find a suitable format.")
+		return http.StatusBadRequest
 	}
 	defer resp.Body.Close()
 
-	w.Header().Set("content-type", "video/mp4")
+	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("Status", "200")
-
-	temp := bytes.NewBuffer(nil)
-	_, err = io.Copy(temp, resp.Body)
-	if err == nil { // done
-		_, err = io.Copy(w, temp)
-		return err
-	}
-
-	newIndex := formatIndex + 1
-	if newIndex < fmtAmount {
-		return c.ProxyVideo(w, videoId, newIndex)
-	}
-	_, err = io.Copy(w, temp)
-	return err
+	_, err = io.Copy(w, resp.Body)
+	return http.StatusOK
 }
 
 func NewClient(httpClient *http.Client) *Client {
