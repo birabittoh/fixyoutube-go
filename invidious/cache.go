@@ -41,28 +41,28 @@ func CacheVideoDB(v Video) error {
 
 	cacheVideo, err := db.Prepare(cacheVideoQuery)
 	if err != nil {
-		logger.Error("Could not cache video:", err)
+		logger.Error("Could not cache video: ", err)
 		return err
 	}
 	defer cacheVideo.Close()
 
 	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Expire)
 	if err != nil {
-		logger.Error("Could not cache video:", err)
+		logger.Error("Could not cache video: ", err)
 		return err
 	}
 
 	for _, f := range v.Formats {
 		cacheFormat, err := db.Prepare(cacheFormatQuery)
 		if err != nil {
-			logger.Error("Could not cache format:", err)
+			logger.Error("Could not cache format: ", err)
 			return err
 		}
 		defer cacheVideo.Close()
 
 		_, err = cacheFormat.Exec(v.VideoId, f.Name, f.Height, f.Width, f.Url)
 		if err != nil {
-			logger.Error("Could not cache format:", err)
+			logger.Error("Could not cache format: ", err)
 			return err
 		}
 	}
@@ -75,7 +75,7 @@ func GetVideoDB(videoId string) (*Video, error) {
 
 	getVideo, err := db.Prepare(getVideoQuery)
 	if err != nil {
-		logger.Error("Could not get video:", err)
+		logger.Error("Could not get video: ", err)
 		return nil, err
 	}
 	defer getVideo.Close()
@@ -94,14 +94,14 @@ func GetVideoDB(videoId string) (*Video, error) {
 
 	getFormat, err := db.Prepare(getFormatQuery)
 	if err != nil {
-		logger.Error("Could not get format:", err)
+		logger.Error("Could not get format: ", err)
 		return nil, err
 	}
 	defer getFormat.Close()
 
 	response, err := getFormat.Query(videoId)
 	if err != nil {
-		logger.Error("Could not get formats:", err)
+		logger.Error("Could not get formats: ", err)
 		return nil, err
 	}
 	defer response.Close()
@@ -110,7 +110,7 @@ func GetVideoDB(videoId string) (*Video, error) {
 		f := Format{}
 		err := response.Scan(&f.VideoId, &f.Name, &f.Height, &f.Width, &f.Url)
 		if err != nil {
-			logger.Error("Could not get formats:", err)
+			logger.Error("Could not get formats: ", err)
 			return nil, err
 		}
 		v.Formats = append(v.Formats, f)

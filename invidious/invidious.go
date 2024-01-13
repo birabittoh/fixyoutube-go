@@ -1,12 +1,8 @@
 package invidious
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 	"time"
@@ -80,48 +76,6 @@ func (e HTTPError) Error() string {
 	return fmt.Sprintf("HTTP error: %d", e.StatusCode)
 }
 
-func (c *Client) fetchVideo(videoId string) (*Video, error) {
-	if c.Instance == "" {
-		err := c.NewInstance()
-		if err != nil {
-			logger.Fatal(err, "Could not get a new instance.")
-		}
-	}
-	endpoint := fmt.Sprintf(videosEndpoint, c.Instance, url.QueryEscape(videoId))
-	resp, err := c.http.Get(endpoint)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, HTTPError{resp.StatusCode}
-	}
-
-	res := &Video{}
-	err = json.Unmarshal(body, res)
-	if err != nil {
-		return nil, err
-	}
-
-	mp4Test := func(f Format) bool { return f.Container == "mp4" }
-	res.Formats = filter(res.Formats, mp4Test)
-
-	expireString := expireRegex.FindStringSubmatch(res.Formats[0].Url)
-	expireTimestamp, err := strconv.ParseInt(expireString[1], 10, 64)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return nil, err
-	}
-	res.Expire = time.Unix(expireTimestamp, 0)
-	return res, nil
-}
-
 func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 	logger.Info("Video https://youtu.be/", videoId, " was requested.")
 
@@ -136,20 +90,18 @@ func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 		}
 	}
 
-	video, err = c.fetchVideo(videoId)
+	video, httpErr := c.fetchVideo(videoId)
 
-	if err != nil {
-		if httpErr, ok := err.(HTTPError); ok {
-			// handle HTTPError
-			s := httpErr.StatusCode
-			if s == http.StatusNotFound || s == http.StatusInternalServerError {
-				logger.Debug("Video does not exist.")
-				return nil, err
-			}
-			logger.Debug("Invidious HTTP error: ", httpErr.StatusCode)
-		}
-		// handle generic error
-		logger.Error(err)
+	switch httpErr {
+	case http.StatusOK:
+		logger.Info("Retrieved by API.")
+		break
+	case http.StatusNotFound:
+		logger.Debug("Video does not exist or can't be retrieved.")
+		return nil, err
+	default:
+		fallthrough
+	case http.StatusInternalServerError:
 		err = c.NewInstance()
 		if err != nil {
 			logger.Error("Could not get a new instance: ", err)
@@ -157,7 +109,6 @@ func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 		}
 		return c.GetVideo(videoId, true)
 	}
-	logger.Info("Retrieved by API.")
 
 	err = CacheVideoDB(*video)
 	if err != nil {
@@ -167,95 +118,16 @@ func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 	return video, nil
 }
 
-func (c *Client) isNotTimedOut(instance string) bool {
-	for i := range c.timeouts {
-		cur := c.timeouts[i]
-		if instance == cur.Instance {
-			return false
-		}
-	}
-	return true
-}
-
-func (c *Client) NewInstance() error {
-	now := time.Now()
-
-	timeoutsTest := func(t Timeout) bool { return now.Sub(t.Timestamp) < timeoutDuration }
-	c.timeouts = filter(c.timeouts, timeoutsTest)
-
-	timeout := Timeout{c.Instance, now}
-	c.timeouts = append(c.timeouts, timeout)
-
-	resp, err := c.http.Get(instancesEndpoint)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return HTTPError{resp.StatusCode}
-	}
-
-	var jsonArray [][]interface{}
-	err = json.Unmarshal(body, &jsonArray)
-	if err != nil {
-		logger.Error("Could not unmarshal JSON response for instances.")
-		return err
-	}
-
-	for i := range jsonArray {
-		instance := jsonArray[i][0].(string)
-		instanceTest := func(t Timeout) bool { return t.Instance == instance }
-		result := filter(c.timeouts, instanceTest)
-		if len(result) == 0 {
-			c.Instance = instance
-			logger.Info("Using new instance: ", c.Instance)
-			return nil
-		}
-	}
-	logger.Error("Cannot find a valid instance.")
-	return err
-}
-
-func (c *Client) ProxyVideo(url string, formatIndex int) (*bytes.Buffer, int64, int) {
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		logger.Error(err) // bad request
-		return nil, 0, http.StatusInternalServerError
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		logger.Error(err) // request failed
-		return nil, 0, http.StatusGone
-	}
-
-	if resp.ContentLength > maxSizeBytes {
-		logger.Debug("Format ", formatIndex, ": Content-Length exceeds max size.")
-		return nil, 0, http.StatusBadRequest
-	}
-	defer resp.Body.Close()
-
-	b := new(bytes.Buffer)
-	l, err := io.Copy(b, resp.Body)
-	if l != resp.ContentLength {
-		return nil, 0, http.StatusBadRequest
-	}
-
-	return b, l, http.StatusOK
-}
-
 func NewClient(httpClient *http.Client) *Client {
 	InitDB()
-	return &Client{
+	client := &Client{
 		http:     httpClient,
 		timeouts: []Timeout{},
 		Instance: "",
 	}
+	err := client.NewInstance()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	return client
 }

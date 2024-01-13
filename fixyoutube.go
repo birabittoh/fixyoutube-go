@@ -155,10 +155,10 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 			b, l, httpStatus := invidiousClient.ProxyVideo(url, formatIndex)
 			switch httpStatus {
 			case http.StatusOK:
-				header := w.Header()
-				header.Set("Status", "200")
-				header.Set("Content-Type", "video/mp4")
-				header.Set("Content-Length", strconv.FormatInt(l, 10))
+				h := w.Header()
+				h.Set("Status", "200")
+				h.Set("Content-Type", "video/mp4")
+				h.Set("Content-Length", strconv.FormatInt(l, 10))
 				io.Copy(w, b)
 				return
 			case http.StatusBadRequest:
@@ -173,7 +173,7 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 }
 
 func main() {
-	logger.SetLevel(logrus.DebugLevel)
+	//logger.SetLevel(logrus.DebugLevel)
 	err := godotenv.Load()
 	if err != nil {
 		logger.Info("No .env file provided.")
@@ -201,7 +201,7 @@ func main() {
 	r.HandleFunc("/{videoId}", shortHandler(videoapi))
 	r.HandleFunc("/{videoId}/{formatIndex}", shortHandler(videoapi))
 	/*
-		// native go implementation (useless until february 2024)
+		// native go implementation
 		r := http.NewServeMux()
 		r.HandleFunc("/watch", watchHandler(videoapi))
 		r.HandleFunc("/{videoId}/", shortHandler(videoapi))
