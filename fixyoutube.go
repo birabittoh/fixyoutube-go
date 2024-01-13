@@ -124,30 +124,14 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		vars := mux.Vars(r)
 		videoId := vars["videoId"]
 
-		video, err := invidious.GetVideoDB(videoId)
-		if err != nil {
-			logger.Warn("Cannot proxy a video that is not cached: https://youtu.be/", videoId)
-			http.Error(w, "Something went wrong.", http.StatusBadRequest)
+		b, l, s := invidiousClient.ProxyVideoId(videoId)
+		if l > 0 {
+			h := w.Header()
+			h.Set("Status", "200")
+			h.Set("Content-Type", "video/mp4")
+			h.Set("Content-Length", strconv.FormatInt(l, 10))
+			io.Copy(w, b)
 			return
-		}
-
-		fmtAmount := len(video.Formats)
-
-		s := http.StatusNotFound
-		for i := fmtAmount - 1; i >= 0; i-- {
-			url := video.Formats[i].Url
-			logger.Debug(url)
-			b, l, httpStatus := invidiousClient.ProxyVideo(url)
-			if httpStatus == http.StatusOK {
-				h := w.Header()
-				h.Set("Status", "200")
-				h.Set("Content-Type", "video/mp4")
-				h.Set("Content-Length", strconv.FormatInt(l, 10))
-				io.Copy(w, b)
-				return
-			}
-			s = httpStatus
-			logger.Debug("Format ", i, "failed with status code ", s)
 		}
 
 		logger.Error("proxyHandler() failed. Final code: ", s)

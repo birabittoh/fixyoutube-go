@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func (c *Client) ProxyVideo(url string) (*bytes.Buffer, int64, int) {
+func (c *Client) proxyUrl(url string) (*bytes.Buffer, int64, int) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		logger.Error(err) // bad request
@@ -41,4 +41,27 @@ func (c *Client) ProxyVideo(url string) (*bytes.Buffer, int64, int) {
 	}
 
 	return b, l, http.StatusOK
+}
+
+func (c *Client) proxyVideo(video *Video) (*bytes.Buffer, int64, int) {
+	for i := len(video.Formats) - 1; i >= 0; i-- {
+		url := video.Formats[i].Url
+		logger.Debug(url)
+		b, l, httpStatus := c.proxyUrl(url)
+		if httpStatus == http.StatusOK {
+			return b, l, i
+		}
+		logger.Debug("Format ", i, "failed with status code ", httpStatus)
+	}
+	return nil, 0, -1
+}
+
+func (c *Client) ProxyVideoId(videoId string) (*bytes.Buffer, int64, int) {
+	video, err := GetVideoDB(videoId)
+	if err != nil {
+		logger.Info("Cannot proxy a video that is not cached: https://youtu.be/", videoId)
+		return nil, 0, http.StatusBadRequest
+	}
+
+	return c.proxyVideo(video)
 }
