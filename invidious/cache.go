@@ -46,26 +46,12 @@ func CacheVideoDB(v Video) error {
 	}
 	defer cacheVideo.Close()
 
-	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Expire)
+	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Url, v.Expire)
 	if err != nil {
 		logger.Error("Could not cache video: ", err)
 		return err
 	}
 
-	for _, f := range v.Formats {
-		cacheFormat, err := db.Prepare(cacheFormatQuery)
-		if err != nil {
-			logger.Error("Could not cache format: ", err)
-			return err
-		}
-		defer cacheVideo.Close()
-
-		_, err = cacheFormat.Exec(v.VideoId, f.Name, f.Height, f.Width, f.Url)
-		if err != nil {
-			logger.Error("Could not cache format: ", err)
-			return err
-		}
-	}
 	return nil
 }
 
@@ -81,7 +67,7 @@ func GetVideoDB(videoId string) (*Video, error) {
 	defer getVideo.Close()
 
 	v := &Video{}
-	err = getVideo.QueryRow(videoId).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &v.Timestamp, &v.Expire)
+	err = getVideo.QueryRow(videoId).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &v.Url, &v.Timestamp, &v.Expire)
 	if err != nil {
 		logger.Debug("Could not get video:", err)
 		return nil, err
@@ -90,30 +76,6 @@ func GetVideoDB(videoId string) (*Video, error) {
 	if v.Timestamp.After(v.Expire) {
 		logger.Info("Video has expired.")
 		return nil, fmt.Errorf("expired")
-	}
-
-	getFormat, err := db.Prepare(getFormatQuery)
-	if err != nil {
-		logger.Error("Could not get format: ", err)
-		return nil, err
-	}
-	defer getFormat.Close()
-
-	response, err := getFormat.Query(videoId)
-	if err != nil {
-		logger.Error("Could not get formats: ", err)
-		return nil, err
-	}
-	defer response.Close()
-
-	for response.Next() {
-		f := Format{}
-		err := response.Scan(&f.VideoId, &f.Name, &f.Height, &f.Width, &f.Url)
-		if err != nil {
-			logger.Error("Could not get formats: ", err)
-			return nil, err
-		}
-		v.Formats = append(v.Formats, f)
 	}
 
 	return v, nil

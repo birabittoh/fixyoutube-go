@@ -29,10 +29,7 @@ type Client struct {
 }
 
 type Format struct {
-	VideoId   string
 	Name      string `json:"qualityLabel"`
-	Height    int
-	Width     int
 	Url       string `json:"url"`
 	Container string `json:"container"`
 	Size      string `json:"size"`
@@ -47,6 +44,7 @@ type Video struct {
 	Formats     []Format `json:"formatStreams"`
 	Timestamp   time.Time
 	Expire      time.Time
+	Url         string
 }
 
 func filter[T any](ss []T, test func(T) bool) (ret []T) {

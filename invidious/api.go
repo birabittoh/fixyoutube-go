@@ -47,6 +47,14 @@ func (c *Client) fetchVideo(videoId string) (*Video, int) {
 		return nil, http.StatusInternalServerError
 	}
 	res.Expire = time.Unix(expireTimestamp, 0)
+
+	_, l, i := c.findCompatibleFormat(res)
+	if l == 0 {
+		logger.Warn("No compatible formats found for video.")
+		res.Url = ""
+	}
+
+	res.Url = res.Formats[i].Url
 	return res, http.StatusOK
 }
 

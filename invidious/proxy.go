@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func (c *Client) proxyUrl(url string) (*bytes.Buffer, int64, int) {
+func (c *Client) urlToBuffer(url string) (*bytes.Buffer, int64, int) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		logger.Error(err) // bad request
@@ -43,11 +43,11 @@ func (c *Client) proxyUrl(url string) (*bytes.Buffer, int64, int) {
 	return b, l, http.StatusOK
 }
 
-func (c *Client) proxyVideo(video *Video) (*bytes.Buffer, int64, int) {
+func (c *Client) findCompatibleFormat(video *Video) (*bytes.Buffer, int64, int) {
 	for i := len(video.Formats) - 1; i >= 0; i-- {
 		url := video.Formats[i].Url
 		logger.Debug(url)
-		b, l, httpStatus := c.proxyUrl(url)
+		b, l, httpStatus := c.urlToBuffer(url)
 		if httpStatus == http.StatusOK {
 			return b, l, i
 		}
@@ -63,5 +63,5 @@ func (c *Client) ProxyVideoId(videoId string) (*bytes.Buffer, int64, int) {
 		return nil, 0, http.StatusBadRequest
 	}
 
-	return c.proxyVideo(video)
+	return c.urlToBuffer(video.Url)
 }
