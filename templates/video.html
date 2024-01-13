@@ -9,13 +9,14 @@
     ██  
 <html lang="en"><head>
     <link rel="canonical" href="https://www.youtube.com/watch?v={{ .VideoId }}" />
+    <meta http-equiv="refresh" content="0;url=https://www.youtube.com/watch?v={{ .VideoId }}" />
+    <meta property="og:url" content="https://www.youtube.com/watch?v={{ .VideoId }}" />
+    {{ if .Url }}
     <meta property="theme-color" content="0000FF" />
     <meta property="twitter:card" content="player" />
     <meta property="twitter:site" content="{{ .Uploader }}" />
     <meta property="twitter:creator" content="{{ .Uploader }}" />
     <meta property="twitter:title" content="{{ .Title }}" />
-    <meta http-equiv="refresh" content="0;url=https://www.youtube.com/watch?v={{ .VideoId }}" />
-    <meta property="og:url" content="https://www.youtube.com/watch?v={{ .VideoId }}" />
     <meta property="og:title" content="{{ .Title }}" />
     <meta property="og:description" content="{{ .Description }}" />
     <meta property="og:site_name" content="FixYouTube ({{ .Uploader }})" />
@@ -25,4 +26,5 @@
     <meta property="og:video:secure_url" content="/proxy/{{ .VideoId }}" />
     <meta property="og:video:duration" content="{{ .Duration }}">
     <meta property="og:video:type" content="video/mp4" />
+    {{ end }}
 </head><body></body></html>

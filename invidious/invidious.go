@@ -111,7 +111,6 @@ func NewClient(httpClient *http.Client) *Client {
 	client := &Client{
 		http:     httpClient,
 		timeouts: []Timeout{},
-		Instance: "",
 	}
 	err := client.NewInstance()
 	if err != nil {

@@ -7,6 +7,10 @@ import (
 )
 
 func (c *Client) urlToBuffer(url string) (*bytes.Buffer, int64, int) {
+	if url == "" {
+		return nil, 0, http.StatusBadRequest
+	}
+
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		logger.Error(err) // bad request

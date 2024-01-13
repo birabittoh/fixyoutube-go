@@ -52,9 +52,10 @@ func (c *Client) fetchVideo(videoId string) (*Video, int) {
 	if l == 0 {
 		logger.Warn("No compatible formats found for video.")
 		res.Url = ""
+	} else {
+		res.Url = res.Formats[i].Url
 	}
 
-	res.Url = res.Formats[i].Url
 	return res, http.StatusOK
 }
 
