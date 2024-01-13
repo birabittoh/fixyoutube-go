@@ -19,6 +19,14 @@ func (c *Client) ProxyVideo(url string) (*bytes.Buffer, int64, int) {
 		return nil, 0, http.StatusGone
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, 0, resp.StatusCode
+	}
+
+	if resp.ContentLength == 0 {
+		return nil, 0, http.StatusNoContent
+	}
+
 	if resp.ContentLength > maxSizeBytes {
 		logger.Debug("Content-Length exceeds max size.")
 		return nil, 0, http.StatusBadRequest

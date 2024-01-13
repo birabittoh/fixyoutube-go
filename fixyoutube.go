@@ -133,27 +133,25 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 
 		fmtAmount := len(video.Formats)
 
-		var httpStatus = http.StatusNotFound
-
+		s := http.StatusNotFound
 		for i := fmtAmount - 1; i >= 0; i-- {
 			url := video.Formats[i].Url
+			logger.Debug(url)
 			b, l, httpStatus := invidiousClient.ProxyVideo(url)
-			switch httpStatus {
-			case http.StatusOK:
+			if httpStatus == http.StatusOK {
 				h := w.Header()
 				h.Set("Status", "200")
 				h.Set("Content-Type", "video/mp4")
 				h.Set("Content-Length", strconv.FormatInt(l, 10))
 				io.Copy(w, b)
 				return
-			case http.StatusBadRequest:
-				continue
-			default:
-				i = -1
 			}
+			s = httpStatus
+			logger.Debug("Format ", i, "failed with status code ", s)
 		}
-		logger.Error("proxyHandler() failed. Code: ", httpStatus)
-		http.Error(w, "Something went wrong.", httpStatus)
+
+		logger.Error("proxyHandler() failed. Final code: ", s)
+		http.Error(w, "Something went wrong.", s)
 	}
 }
 
