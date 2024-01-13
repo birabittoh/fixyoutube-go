@@ -65,11 +65,11 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func videoHandler(videoId string, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
+	url := "https://www.youtube.com/watch?v=" + videoId
 	userAgent := r.UserAgent()
 	res := userAgentRegex.MatchString(userAgent)
 	if !res {
 		logger.Debug("Regex did not match. Redirecting. UA:", userAgent)
-		url := "https://www.youtube.com/watch?v=" + videoId
 		http.Redirect(w, r, url, http.StatusMovedPermanently)
 		return
 	}
@@ -84,6 +84,12 @@ func videoHandler(videoId string, invidiousClient *invidious.Client, w http.Resp
 	if err != nil {
 		logger.Info("Wrong video ID: ", videoId)
 		http.Error(w, "Wrong video ID.", http.StatusNotFound)
+		return
+	}
+
+	if video.Url == "" {
+		logger.Debug("No URL available. Redirecting.")
+		http.Redirect(w, r, url, http.StatusMovedPermanently)
 		return
 	}
 
