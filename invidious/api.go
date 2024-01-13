@@ -79,7 +79,7 @@ func (c *Client) NewInstance() error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return HTTPError{resp.StatusCode}
+		return fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 
 	var jsonArray [][]interface{}

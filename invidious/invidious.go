@@ -1,7 +1,6 @@
 package invidious
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -65,14 +64,6 @@ func parseOrZero(number string) int {
 		return 0
 	}
 	return res
-}
-
-type HTTPError struct {
-	StatusCode int
-}
-
-func (e HTTPError) Error() string {
-	return fmt.Sprintf("HTTP error: %d", e.StatusCode)
 }
 
 func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
