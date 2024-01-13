@@ -48,7 +48,6 @@ type Video struct {
 	Formats     []Format `json:"formatStreams"`
 	Timestamp   time.Time
 	Expire      time.Time
-	FormatIndex int
 }
 
 func filter[T any](ss []T, test func(T) bool) (ret []T) {

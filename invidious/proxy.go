@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func (c *Client) ProxyVideo(url string, formatIndex int) (*bytes.Buffer, int64, int) {
+func (c *Client) ProxyVideo(url string) (*bytes.Buffer, int64, int) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		logger.Error(err) // bad request
@@ -20,7 +20,7 @@ func (c *Client) ProxyVideo(url string, formatIndex int) (*bytes.Buffer, int64, 
 	}
 
 	if resp.ContentLength > maxSizeBytes {
-		logger.Debug("Format ", formatIndex, ": Content-Length exceeds max size.")
+		logger.Debug("Content-Length exceeds max size.")
 		return nil, 0, http.StatusBadRequest
 	}
 	defer resp.Body.Close()
@@ -28,6 +28,7 @@ func (c *Client) ProxyVideo(url string, formatIndex int) (*bytes.Buffer, int64, 
 	b := new(bytes.Buffer)
 	l, err := io.Copy(b, resp.Body)
 	if l != resp.ContentLength {
+		logger.Debug("Content-Length is inconsistent.")
 		return nil, 0, http.StatusBadRequest
 	}
 

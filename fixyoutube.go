@@ -27,15 +27,6 @@ var videoRegex = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
 
 var apiKey string
 
-func parseFormatIndex(formatIndexString string) int {
-	formatIndex, err := strconv.Atoi(formatIndexString)
-	if err != nil || formatIndex < 0 {
-		logger.Debug("Could not parse formatIndex.")
-		return 0
-	}
-	return formatIndex
-}
-
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	buf := &bytes.Buffer{}
 	err := indexTemplate.Execute(buf, nil)
@@ -73,7 +64,7 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Done.", http.StatusOK)
 }
 
-func videoHandler(videoId string, formatIndex int, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
+func videoHandler(videoId string, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
 	userAgent := r.UserAgent()
 	res := userAgentRegex.MatchString(userAgent)
 	if !res {
@@ -96,8 +87,6 @@ func videoHandler(videoId string, formatIndex int, invidiousClient *invidious.Cl
 		return
 	}
 
-	video.FormatIndex = formatIndex % len(video.Formats)
-
 	buf := &bytes.Buffer{}
 	err = videoTemplate.Execute(buf, video)
 	if err != nil {
@@ -118,8 +107,7 @@ func watchHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		}
 		q := u.Query()
 		videoId := q.Get("v")
-		formatIndex := parseFormatIndex(q.Get("f"))
-		videoHandler(videoId, formatIndex, invidiousClient, w, r)
+		videoHandler(videoId, invidiousClient, w, r)
 	}
 }
 
@@ -127,8 +115,7 @@ func shortHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		videoId := vars["videoId"]
-		formatIndex := parseFormatIndex(vars["formatIndex"])
-		videoHandler(videoId, formatIndex, invidiousClient, w, r)
+		videoHandler(videoId, invidiousClient, w, r)
 	}
 }
 
@@ -136,7 +123,6 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		videoId := vars["videoId"]
-		formatIndex := parseFormatIndex(vars["formatIndex"])
 
 		video, err := invidious.GetVideoDB(videoId)
 		if err != nil {
@@ -146,13 +132,12 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		}
 
 		fmtAmount := len(video.Formats)
-		idx := formatIndex % fmtAmount
 
 		var httpStatus = http.StatusNotFound
 
-		for i := fmtAmount - 1 - idx; i >= 0; i-- {
+		for i := fmtAmount - 1; i >= 0; i-- {
 			url := video.Formats[i].Url
-			b, l, httpStatus := invidiousClient.ProxyVideo(url, formatIndex)
+			b, l, httpStatus := invidiousClient.ProxyVideo(url)
 			switch httpStatus {
 			case http.StatusOK:
 				h := w.Header()
@@ -197,9 +182,7 @@ func main() {
 	r.HandleFunc("/clear", clearHandler)
 	r.HandleFunc("/watch", watchHandler(videoapi))
 	r.HandleFunc("/proxy/{videoId}", proxyHandler(videoapi))
-	r.HandleFunc("/proxy/{videoId}/{formatIndex}", proxyHandler(videoapi))
 	r.HandleFunc("/{videoId}", shortHandler(videoapi))
-	r.HandleFunc("/{videoId}/{formatIndex}", shortHandler(videoapi))
 	/*
 		// native go implementation
 		r := http.NewServeMux()
