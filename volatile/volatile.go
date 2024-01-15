@@ -11,7 +11,7 @@ var logger = logrus.New()
 
 type Element[K comparable, V any] struct {
 	key       K
-	value     V
+	value     *V
 	Timestamp time.Time
 }
 
@@ -86,41 +86,40 @@ func (v *Volatile[K, V]) Get(key K) (*V, error) {
 	if i == -1 {
 		return nil, fmt.Errorf("Not found")
 	}
-	return &v.data[i].value, nil
+	return v.data[i].value, nil
 }
 
 func (v *Volatile[K, V]) Remove(key K) (*V, error) {
-	err := v.clean()
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
 	i := v.indexOf(key)
 	if i == -1 {
-		logger.Error(err)
+		err := fmt.Errorf("Can't remove unexisting index")
+		logger.Warn("Trying to delete unexisting key: ", key)
 		return nil, err
 	}
 
 	value := &v.data[i].value
-	err = v.removeIndex(i)
+	err := v.removeIndex(i)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
 	}
-	return value, nil
+	err = v.clean()
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+	return *value, nil
 }
 
-func (v *Volatile[K, V]) Set(key K, value V) error {
+func (v *Volatile[K, V]) Set(key K, value *V) error {
 	err := v.clean()
 	if err != nil {
 		logger.Error(err)
 		return err
 	}
-	_, err = v.Remove(key)
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
+
+	v.Remove(key)
+
 	e := Element[K, V]{key: key, value: value, Timestamp: time.Now()}
 	v.data = append(v.data, e)
 	return nil

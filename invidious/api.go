@@ -55,11 +55,13 @@ func (c *Client) fetchVideo(videoId string) (*Video, int) {
 	}
 	res.Expire = time.Unix(expireTimestamp, 0)
 
-	_, l, i := c.findCompatibleFormat(res)
+	b, l, i := c.findCompatibleFormat(res)
 	if l == 0 {
 		logger.Warn("No compatible formats found for video.")
 		res.Url = ""
 	} else {
+		videoBuffer := NewVideoBuffer(b, l)
+		c.buffers.Set(videoId, videoBuffer)
 		res.Url = res.Formats[i].Url
 	}
 
@@ -72,7 +74,8 @@ func (c *Client) isNotTimedOut(instance string) bool {
 
 func (c *Client) NewInstance() error {
 	if c.Instance != "" {
-		c.timeouts.Set(c.Instance, fmt.Errorf("Generic error"))
+		err := fmt.Errorf("Generic error")
+		c.timeouts.Set(c.Instance, &err)
 	}
 
 	resp, err := c.http.Get(instancesEndpoint)

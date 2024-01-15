@@ -131,22 +131,23 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		videoId := vars["videoId"]
 
 		b, l, s := invidiousClient.ProxyVideoId(videoId)
-		if l > 0 {
-			h := w.Header()
-			h.Set("Status", "200")
-			h.Set("Content-Type", "video/mp4")
-			h.Set("Content-Length", strconv.FormatInt(l, 10))
-			io.Copy(w, b)
+		if l == 0 || l != int64(b.Len()) {
+			logger.Error("proxyHandler() failed. Final code: ", s)
+			http.Error(w, "Something went wrong.", s)
 			return
 		}
+		h := w.Header()
+		h.Set("Status", "200")
+		h.Set("Content-Type", "video/mp4")
+		h.Set("Content-Length", strconv.FormatInt(l, 10))
 
-		logger.Error("proxyHandler() failed. Final code: ", s)
-		http.Error(w, "Something went wrong.", s)
+		io.Copy(w, b)
+		return
 	}
 }
 
 func main() {
-	//logger.SetLevel(logrus.DebugLevel)
+	logger.SetLevel(logrus.DebugLevel)
 	err := godotenv.Load()
 	if err != nil {
 		logger.Info("No .env file provided.")
