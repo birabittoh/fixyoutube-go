@@ -130,8 +130,8 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		vars := mux.Vars(r)
 		videoId := vars["videoId"]
 
-		b, l, s := invidiousClient.ProxyVideoId(videoId)
-		if l == 0 || l != int64(b.Len()) {
+		vb, s := invidiousClient.ProxyVideoId(videoId)
+		if !vb.ValidateLength() {
 			logger.Error("proxyHandler() failed. Final code: ", s)
 			http.Error(w, "Something went wrong.", s)
 			return
@@ -139,9 +139,8 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		h := w.Header()
 		h.Set("Status", "200")
 		h.Set("Content-Type", "video/mp4")
-		h.Set("Content-Length", strconv.FormatInt(l, 10))
-
-		io.Copy(w, b)
+		h.Set("Content-Length", strconv.FormatInt(vb.Length, 10))
+		io.Copy(w, vb.Buffer)
 		return
 	}
 }

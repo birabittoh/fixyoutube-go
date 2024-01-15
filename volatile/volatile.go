@@ -93,7 +93,7 @@ func (v *Volatile[K, V]) Remove(key K) (*V, error) {
 	i := v.indexOf(key)
 	if i == -1 {
 		err := fmt.Errorf("Can't remove unexisting index")
-		logger.Warn("Trying to delete unexisting key: ", key)
+		logger.Debug("Trying to delete unexisting key: ", key)
 		return nil, err
 	}
 

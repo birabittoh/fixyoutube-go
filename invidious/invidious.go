@@ -21,8 +21,8 @@ var expireRegex = regexp.MustCompile(`(?i)expire=(\d+)`)
 var logger = logrus.New()
 
 type VideoBuffer struct {
-	buffer *bytes.Buffer
-	length int64
+	Buffer *bytes.Buffer
+	Length int64
 }
 
 type Client struct {
@@ -66,9 +66,17 @@ func NewVideoBuffer(b *bytes.Buffer, l int64) *VideoBuffer {
 	duplicate.Write(b.Bytes())
 
 	return &VideoBuffer{
-		buffer: duplicate,
-		length: l,
+		Buffer: duplicate,
+		Length: l,
 	}
+}
+
+func (vb *VideoBuffer) Clone() *VideoBuffer {
+	return NewVideoBuffer(vb.Buffer, vb.Length)
+}
+
+func (vb *VideoBuffer) ValidateLength() bool {
+	return vb.Length > 0 && vb.Length == int64(vb.Buffer.Len())
 }
 
 func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
