@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+type Format struct {
+	Name      string `json:"qualityLabel"`
+	Url       string `json:"url"`
+	Container string `json:"container"`
+	Size      string `json:"size"`
+}
+
 func (c *Client) fetchVideo(videoId string) (*Video, int) {
 	endpoint := fmt.Sprintf(videosEndpoint, c.Instance, url.QueryEscape(videoId))
 	resp, err := c.http.Get(endpoint)
@@ -60,21 +67,13 @@ func (c *Client) fetchVideo(videoId string) (*Video, int) {
 }
 
 func (c *Client) isNotTimedOut(instance string) bool {
-	for i := range c.timeouts {
-		cur := c.timeouts[i]
-		if instance == cur.Instance {
-			return false
-		}
-	}
-	return true
+	return !c.timeouts.Has(instance)
 }
 
 func (c *Client) NewInstance() error {
-	now := time.Now()
-
-	timeoutsTest := func(t Timeout) bool { return now.Sub(t.Timestamp) < timeoutDuration }
-	c.timeouts = filter(c.timeouts, timeoutsTest)
-	c.timeouts = append(c.timeouts, Timeout{c.Instance, now})
+	if c.Instance != "" {
+		c.timeouts.Set(c.Instance, fmt.Errorf("Generic error"))
+	}
 
 	resp, err := c.http.Get(instancesEndpoint)
 	if err != nil {
@@ -100,9 +99,7 @@ func (c *Client) NewInstance() error {
 
 	for i := range jsonArray {
 		instance := jsonArray[i][0].(string)
-		instanceTest := func(t Timeout) bool { return t.Instance == instance }
-		result := filter(c.timeouts, instanceTest)
-		if len(result) == 0 {
+		if !c.timeouts.Has(instance) {
 			c.Instance = instance
 			logger.Info("Using new instance: ", c.Instance)
 			return nil

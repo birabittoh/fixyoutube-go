@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/BiRabittoh/fixyoutube-go/volatile"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,22 +18,10 @@ const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,descrip
 var expireRegex = regexp.MustCompile(`(?i)expire=(\d+)`)
 var logger = logrus.New()
 
-type Timeout struct {
-	Instance  string
-	Timestamp time.Time
-}
-
 type Client struct {
 	http     *http.Client
-	timeouts []Timeout
+	timeouts *volatile.Volatile[string, error]
 	Instance string
-}
-
-type Format struct {
-	Name      string `json:"qualityLabel"`
-	Url       string `json:"url"`
-	Container string `json:"container"`
-	Size      string `json:"size"`
 }
 
 type Video struct {
@@ -88,8 +77,6 @@ func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 		logger.Debug("Video does not exist or can't be retrieved.")
 		return nil, err
 	default:
-		fallthrough
-	case http.StatusInternalServerError:
 		err = c.NewInstance()
 		if err != nil {
 			logger.Error("Could not get a new instance: ", err)
@@ -108,9 +95,10 @@ func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 
 func NewClient(httpClient *http.Client) *Client {
 	InitDB()
+	timeouts := volatile.NewVolatile[string, error](timeoutDuration)
 	client := &Client{
 		http:     httpClient,
-		timeouts: []Timeout{},
+		timeouts: timeouts,
 	}
 	err := client.NewInstance()
 	if err != nil {
