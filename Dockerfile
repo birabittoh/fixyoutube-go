@@ -14,6 +14,7 @@ RUN go mod download
 COPY templates /dist/templates
 COPY templates ./templates
 COPY invidious ./invidious
+COPY volatile ./volatile
 COPY *.go ./
 
 # Build
