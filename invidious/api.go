@@ -56,7 +56,7 @@ func (c *Client) fetchVideo(videoId string) (*Video, int) {
 	res.Expire = time.Unix(expireTimestamp, 0)
 
 	vb, i := c.findCompatibleFormat(res)
-	if vb.Length <= 0 {
+	if i < 0 {
 		logger.Warn("No compatible formats found for video.")
 		res.Url = ""
 	} else {
