@@ -12,17 +12,6 @@ CREATE TABLE IF NOT EXISTS videos (
     expire DATETIME NOT NULL
 );`
 
-const createQueryFormats = `
-CREATE TABLE IF NOT EXISTS formats (
-    videoId TEXT,
-	name TEXT,
-    height TEXT NOT NULL,
-    width TEXT NOT NULL,
-    url TEXT,
-	PRIMARY KEY (videoId, name),
-	FOREIGN KEY(videoId) REFERENCES videos(videoId)
-);`
-
 const getVideoQuery = "SELECT * FROM videos WHERE videoId = (?);"
 
 const cacheVideoQuery = "INSERT OR REPLACE INTO videos (videoId, title, description, uploader, duration, url, expire) VALUES (?, ?, ?, ?, ?, ?, ?);"

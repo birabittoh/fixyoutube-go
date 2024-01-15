@@ -28,11 +28,6 @@ func InitDB() {
 		logger.Errorf("%q: %s\n", err, createQueryVideos)
 		return
 	}
-	_, err = db.Exec(createQueryFormats)
-	if err != nil {
-		logger.Errorf("%q: %s\n", err, createQueryFormats)
-		return
-	}
 }
 
 func CacheVideoDB(v Video) error {
