@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net/http"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/BiRabittoh/fixyoutube-go/volatile"
@@ -53,20 +52,12 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 	return
 }
 
-func parseOrZero(number string) int {
-	res, err := strconv.Atoi(number)
-	if err != nil {
-		return 0
-	}
-	return res
-}
-
 func NewVideoBuffer(b *bytes.Buffer, l int64) *VideoBuffer {
-	duplicate := new(bytes.Buffer)
-	duplicate.Write(b.Bytes())
+	d := new(bytes.Buffer)
+	d.Write(b.Bytes())
 
 	return &VideoBuffer{
-		Buffer: duplicate,
+		Buffer: d,
 		Length: l,
 	}
 }
@@ -98,7 +89,6 @@ func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 	switch httpErr {
 	case http.StatusOK:
 		logger.Info("Retrieved by API.")
-		break
 	case http.StatusNotFound:
 		logger.Debug("Video does not exist or can't be retrieved.")
 		return nil, err

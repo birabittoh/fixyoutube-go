@@ -38,7 +38,7 @@ func (c *Client) urlToBuffer(url string) (*VideoBuffer, int) {
 	defer resp.Body.Close()
 
 	b := new(bytes.Buffer)
-	l, err := io.Copy(b, resp.Body)
+	l, _ := io.Copy(b, resp.Body)
 	if l != resp.ContentLength {
 		logger.Debug("Content-Length is inconsistent.")
 		return nil, http.StatusBadRequest

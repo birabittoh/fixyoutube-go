@@ -131,9 +131,14 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		videoId := vars["videoId"]
 
 		vb, s := invidiousClient.ProxyVideoId(videoId)
-		if !vb.ValidateLength() {
+		if s != http.StatusOK {
 			logger.Error("proxyHandler() failed. Final code: ", s)
 			http.Error(w, "Something went wrong.", s)
+			return
+		}
+		if !vb.ValidateLength() {
+			logger.Error("Buffer length is inconsistent.")
+			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 			return
 		}
 		h := w.Header()
@@ -141,7 +146,6 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 		h.Set("Content-Type", "video/mp4")
 		h.Set("Content-Length", strconv.FormatInt(vb.Length, 10))
 		io.Copy(w, vb.Buffer)
-		return
 	}
 }
 

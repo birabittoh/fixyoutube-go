@@ -68,13 +68,9 @@ func (c *Client) fetchVideo(videoId string) (*Video, int) {
 	return res, http.StatusOK
 }
 
-func (c *Client) isNotTimedOut(instance string) bool {
-	return !c.timeouts.Has(instance)
-}
-
 func (c *Client) NewInstance() error {
 	if c.Instance != "" {
-		err := fmt.Errorf("Generic error")
+		err := fmt.Errorf("generic error")
 		c.timeouts.Set(c.Instance, &err)
 	}
 
@@ -109,5 +105,5 @@ func (c *Client) NewInstance() error {
 		}
 	}
 
-	return fmt.Errorf("Cannot find a valid instance.")
+	return fmt.Errorf("cannot find a valid instance")
 }
