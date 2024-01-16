@@ -31,7 +31,7 @@ func (c *Client) urlToBuffer(url string) (*VideoBuffer, int) {
 		return nil, http.StatusNoContent
 	}
 
-	if resp.ContentLength > maxSizeBytes {
+	if resp.ContentLength > c.Options.MaxSizeBytes {
 		logger.Debug("Content-Length exceeds max size.")
 		return nil, http.StatusBadRequest
 	}

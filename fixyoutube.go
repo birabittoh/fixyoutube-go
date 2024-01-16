@@ -149,6 +149,23 @@ func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	}
 }
 
+func getenvDefault(key string, def string) string {
+	res := os.Getenv(key)
+	if res == "" {
+		return def
+	}
+	return res
+}
+
+func getenvDefaultParse(key string, def string) float64 {
+	value := getenvDefault(key, def)
+	res, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	return res
+}
+
 func main() {
 	logger.SetLevel(logrus.DebugLevel)
 	err := godotenv.Load()
@@ -156,18 +173,19 @@ func main() {
 		logger.Info("No .env file provided.")
 	}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3000"
-	}
-
-	apiKey = os.Getenv("API_KEY")
-	if apiKey == "" {
-		apiKey = "itsme"
-	}
+	apiKey = getenvDefault("API_KEY", "itsme")
+	port := getenvDefault("PORT", "3000")
+	cacheDuration := getenvDefaultParse("CACHE_DURATION_MINUTES", "5")
+	timeoutDuration := getenvDefaultParse("TIMEOUT_DURATION_MINUTES", "10")
+	maxSizeMB := getenvDefaultParse("MAX_SIZE_MB", "20")
 
 	myClient := &http.Client{Timeout: 10 * time.Second}
-	videoapi := invidious.NewClient(myClient)
+	options := invidious.ClientOptions{
+		CacheDuration:   time.Duration(cacheDuration) * time.Minute,
+		TimeoutDuration: time.Duration(timeoutDuration) * time.Minute,
+		MaxSizeBytes:    int64(maxSizeMB * 1000000),
+	}
+	videoapi := invidious.NewClient(myClient, options)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", indexHandler)

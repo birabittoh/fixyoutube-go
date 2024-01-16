@@ -10,14 +10,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const cacheDuration = 5 * time.Minute // 5 m
-const timeoutDuration = 10 * time.Minute
-const maxSizeBytes = 20000000 // 20 MB
 const instancesEndpoint = "https://api.invidious.io/instances.json?sort_by=api,type"
 const videosEndpoint = "https://%s/api/v1/videos/%s?fields=videoId,title,description,author,lengthSeconds,size,formatStreams"
 
 var expireRegex = regexp.MustCompile(`(?i)expire=(\d+)`)
 var logger = logrus.New()
+
+type ClientOptions struct {
+	CacheDuration   time.Duration
+	TimeoutDuration time.Duration
+	MaxSizeBytes    int64
+}
 
 type VideoBuffer struct {
 	Buffer *bytes.Buffer
@@ -29,6 +32,7 @@ type Client struct {
 	timeouts *volatile.Volatile[string, error]
 	buffers  *volatile.Volatile[string, VideoBuffer]
 	Instance string
+	Options  ClientOptions
 }
 
 type Video struct {
@@ -109,14 +113,15 @@ func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 	return video, nil
 }
 
-func NewClient(httpClient *http.Client) *Client {
+func NewClient(httpClient *http.Client, options ClientOptions) *Client {
 	InitDB()
-	timeouts := volatile.NewVolatile[string, error](timeoutDuration)
-	buffers := volatile.NewVolatile[string, VideoBuffer](cacheDuration)
+	timeouts := volatile.NewVolatile[string, error](options.TimeoutDuration)
+	buffers := volatile.NewVolatile[string, VideoBuffer](options.CacheDuration)
 	client := &Client{
 		http:     httpClient,
 		timeouts: timeouts,
 		buffers:  buffers,
+		Options:  options,
 	}
 	err := client.NewInstance()
 	if err != nil {
