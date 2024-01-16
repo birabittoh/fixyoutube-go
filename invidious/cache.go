@@ -3,6 +3,7 @@ package invidious
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -62,13 +63,13 @@ func GetVideoDB(videoId string) (*Video, error) {
 	defer getVideo.Close()
 
 	v := &Video{}
-	err = getVideo.QueryRow(videoId).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &v.Url, &v.Timestamp, &v.Expire)
+	err = getVideo.QueryRow(videoId).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &v.Url, &v.Expire)
 	if err != nil {
 		logger.Debug("Could not get video:", err)
 		return nil, err
 	}
 
-	if v.Timestamp.After(v.Expire) {
+	if time.Now().After(v.Expire) {
 		logger.Info("Video has expired.")
 		return nil, fmt.Errorf("expired")
 	}

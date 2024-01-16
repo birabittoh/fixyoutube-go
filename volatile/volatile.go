@@ -9,14 +9,13 @@ import (
 
 var logger = logrus.New()
 
-type Element[K comparable, V any] struct {
-	key       K
+type Element[V any] struct {
 	value     *V
 	Timestamp time.Time
 }
 
 type Volatile[K comparable, V any] struct {
-	data       []Element[K, V]
+	data       map[K]Element[V]
 	timeToLive time.Duration
 }
 
@@ -29,98 +28,54 @@ func reverseIntArray(arr []int) {
 
 func NewVolatile[K comparable, V any](timeToLive time.Duration) *Volatile[K, V] {
 	return &Volatile[K, V]{
-		data:       nil,
+		data:       make(map[K]Element[V]),
 		timeToLive: timeToLive,
 	}
 }
 
-func (v *Volatile[K, V]) removeIndex(index int) error {
-	if index < 0 || index >= len(v.data) {
-		return fmt.Errorf("Index out of bounds")
-	}
-	v.data = append(v.data[:index], v.data[index+1:]...)
-	return nil
-}
-
-func (v *Volatile[K, V]) clean() error {
+func (v *Volatile[K, V]) clean() {
 	now := time.Now()
+	keysToDelete := []K{}
 
-	for i := len(v.data) - 1; i >= 0; i-- {
-		if now.Sub(v.data[i].Timestamp) > v.timeToLive {
-			err := v.removeIndex(i)
-			if err != nil {
-				return err
-			}
+	for key, value := range v.data {
+		if now.Sub(value.Timestamp) > v.timeToLive {
+			keysToDelete = append(keysToDelete, key)
 		}
 	}
-	return nil
-}
-
-func (v *Volatile[K, V]) indexOf(key K) int {
-	for i := range v.data {
-		e := v.data[i]
-		if e.key == key {
-			return i
-		}
+	for _, key := range keysToDelete {
+		delete(v.data, key)
 	}
-	return -1
 }
 
 func (v *Volatile[K, V]) Has(key K) bool {
-	err := v.clean()
-	if err != nil {
-		logger.Println(err)
-		return false
-	}
-	return v.indexOf(key) != -1
+	v.clean()
+	_, ok := v.data[key]
+	return ok
 }
 
 func (v *Volatile[K, V]) Get(key K) (*V, error) {
-	err := v.clean()
-	if err != nil {
-		logger.Println(err)
-		return nil, err
+	v.clean()
+	element, ok := v.data[key]
+	if !ok {
+		return nil, fmt.Errorf("not found")
 	}
-
-	i := v.indexOf(key)
-	if i == -1 {
-		return nil, fmt.Errorf("Not found")
-	}
-	return v.data[i].value, nil
+	return element.value, nil
 }
 
 func (v *Volatile[K, V]) Remove(key K) (*V, error) {
-	i := v.indexOf(key)
-	if i == -1 {
-		err := fmt.Errorf("Can't remove unexisting index")
-		logger.Debug("Trying to delete unexisting key: ", key)
-		return nil, err
+	v.clean()
+	value, ok := v.data[key]
+
+	if ok {
+		delete(v.data, key)
+		return value.value, nil
 	}
 
-	value := &v.data[i].value
-	err := v.removeIndex(i)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
-	err = v.clean()
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
-	return *value, nil
+	return nil, fmt.Errorf("not found")
 }
 
 func (v *Volatile[K, V]) Set(key K, value *V) error {
-	err := v.clean()
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
-
-	v.Remove(key)
-
-	e := Element[K, V]{key: key, value: value, Timestamp: time.Now()}
-	v.data = append(v.data, e)
+	v.data[key] = Element[V]{value: value, Timestamp: time.Now()}
+	v.clean()
 	return nil
 }

@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS videos (
     uploader TEXT NOT NULL,
     duration int NOT NULL,
     url TEXT NOT NULL,
-    timestamp DATETIME DEFAULT (datetime('now')),
     expire DATETIME NOT NULL
 );`
 

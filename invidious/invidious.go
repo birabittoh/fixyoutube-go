@@ -42,7 +42,6 @@ type Video struct {
 	Uploader    string   `json:"author"`
 	Duration    int      `json:"lengthSeconds"`
 	Formats     []Format `json:"formatStreams"`
-	Timestamp   time.Time
 	Expire      time.Time
 	Url         string
 }

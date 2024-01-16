@@ -65,14 +65,17 @@ func (c *Client) findCompatibleFormat(video *Video) (*VideoBuffer, int) {
 func (c *Client) getBuffer(video Video) (*VideoBuffer, int) {
 	vb, err := c.buffers.Get(video.VideoId)
 	if err != nil {
+		// no cache entry
 		vb, s := c.urlToBuffer(video.Url)
-		if vb.Length > 0 {
-			videoBuffer := vb.Clone()
-			c.buffers.Set(video.VideoId, videoBuffer)
+		if vb != nil {
+			if s == http.StatusOK && vb.Length > 0 {
+				c.buffers.Set(video.VideoId, vb.Clone())
+				return vb, s
+			}
 		}
-		return vb, s
+		return nil, s
 	}
-
+	//cache entry
 	videoBuffer := vb.Clone()
 	return videoBuffer, http.StatusOK
 }
