@@ -19,6 +19,7 @@ var logger = logrus.New()
 type ClientOptions struct {
 	CacheDuration   time.Duration
 	TimeoutDuration time.Duration
+	CleanupInterval time.Duration
 	MaxSizeBytes    int64
 }
 
@@ -114,8 +115,8 @@ func (c *Client) GetVideo(videoId string, fromCache bool) (*Video, error) {
 
 func NewClient(httpClient *http.Client, options ClientOptions) *Client {
 	InitDB()
-	timeouts := volatile.NewVolatile[string, error](options.TimeoutDuration)
-	buffers := volatile.NewVolatile[string, VideoBuffer](options.CacheDuration)
+	timeouts := volatile.NewVolatile[string, error](options.TimeoutDuration, options.CleanupInterval)
+	buffers := volatile.NewVolatile[string, VideoBuffer](options.CacheDuration, options.CleanupInterval)
 	client := &Client{
 		http:     httpClient,
 		timeouts: timeouts,

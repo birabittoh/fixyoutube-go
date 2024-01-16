@@ -181,12 +181,14 @@ func main() {
 	port := getenvDefault("PORT", "3000")
 	cacheDuration := getenvDefaultParse("CACHE_DURATION_MINUTES", "5")
 	timeoutDuration := getenvDefaultParse("TIMEOUT_DURATION_MINUTES", "10")
+	cleanupInterval := getenvDefaultParse("CLEANUP_INTERVAL_SECONDS", "30")
 	maxSizeMB := getenvDefaultParse("MAX_SIZE_MB", "20")
 
 	myClient := &http.Client{Timeout: 10 * time.Second}
 	options := invidious.ClientOptions{
 		CacheDuration:   time.Duration(cacheDuration) * time.Minute,
 		TimeoutDuration: time.Duration(timeoutDuration) * time.Minute,
+		CleanupInterval: time.Duration(cleanupInterval) * time.Second,
 		MaxSizeBytes:    int64(maxSizeMB * 1000000),
 	}
 	videoapi := invidious.NewClient(myClient, options)

@@ -19,21 +19,7 @@ type Volatile[K comparable, V any] struct {
 	timeToLive time.Duration
 }
 
-func reverseIntArray(arr []int) {
-	length := len(arr)
-	for i := 0; i < length/2; i++ {
-		arr[i], arr[length-i-1] = arr[length-i-1], arr[i]
-	}
-}
-
-func NewVolatile[K comparable, V any](timeToLive time.Duration) *Volatile[K, V] {
-	return &Volatile[K, V]{
-		data:       make(map[K]Element[V]),
-		timeToLive: timeToLive,
-	}
-}
-
-func (v *Volatile[K, V]) clean() {
+func (v *Volatile[K, V]) clean() int {
 	now := time.Now()
 	keysToDelete := []K{}
 
@@ -45,6 +31,29 @@ func (v *Volatile[K, V]) clean() {
 	for _, key := range keysToDelete {
 		delete(v.data, key)
 	}
+	return len(keysToDelete)
+}
+
+func (v *Volatile[K, V]) cleanupRoutine(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			amt := v.clean()
+			logger.Debug(amt, " elements were automatically removed from cache.")
+		}
+	}
+}
+
+func NewVolatile[K comparable, V any](timeToLive time.Duration, cleanupInterval time.Duration) *Volatile[K, V] {
+	v := &Volatile[K, V]{
+		data:       make(map[K]Element[V]),
+		timeToLive: timeToLive,
+	}
+	go v.cleanupRoutine(cleanupInterval)
+	return v
 }
 
 func (v *Volatile[K, V]) Has(key K) bool {
