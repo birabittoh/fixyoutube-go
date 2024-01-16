@@ -11,7 +11,6 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Transfer source code
-COPY templates /dist/templates
 COPY templates ./templates
 COPY invidious ./invidious
 COPY volatile ./volatile

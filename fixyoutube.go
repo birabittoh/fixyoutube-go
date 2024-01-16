@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"html/template"
 	"io"
 	"net/http"
@@ -19,13 +20,16 @@ import (
 
 const templatesDirectory = "templates/"
 
-var logger = logrus.New()
-var indexTemplate = template.Must(template.ParseFiles(templatesDirectory + "index.html"))
-var videoTemplate = template.Must(template.ParseFiles(templatesDirectory + "video.html"))
-var userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
-var videoRegex = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
-
-var apiKey string
+var (
+	//go:embed templates/index.html templates/video.html
+	templates      embed.FS
+	apiKey         string
+	logger         = logrus.New()
+	indexTemplate  = template.Must(template.ParseFS(templates, templatesDirectory+"index.html"))
+	videoTemplate  = template.Must(template.ParseFS(templates, templatesDirectory+"video.html"))
+	userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
+	videoRegex     = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
+)
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	buf := &bytes.Buffer{}
