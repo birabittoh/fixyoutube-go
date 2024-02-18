@@ -26,12 +26,13 @@ func (c *Client) fetchVideo(videoId string) (*Video, int) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, http.StatusNotFound
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		logger.Warn("Invidious gave the following status code: ", resp.StatusCode)
-		if resp.StatusCode == http.StatusForbidden {
-			return nil, http.StatusInternalServerError
-		}
-		return nil, http.StatusNotFound
+		return nil, resp.StatusCode
 	}
 
 	body, err := io.ReadAll(resp.Body)
