@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/BiRabittoh/fixyoutube-go/invidious"
-	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
@@ -123,16 +122,14 @@ func watchHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 
 func shortHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		videoId := vars["videoId"]
+		videoId := r.PathValue("videoId")
 		videoHandler(videoId, invidiousClient, w, r)
 	}
 }
 
 func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		videoId := vars["videoId"]
+		videoId := r.PathValue("videoId")
 
 		vb, s := invidiousClient.ProxyVideoId(videoId)
 		if s != http.StatusOK {
@@ -193,7 +190,7 @@ func main() {
 	}
 	videoapi := invidious.NewClient(myClient, options)
 
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	r.HandleFunc("/", indexHandler)
 	r.HandleFunc("/clear", clearHandler)
 	r.HandleFunc("/watch", watchHandler(videoapi))
