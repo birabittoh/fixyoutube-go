@@ -15,6 +15,14 @@ type Format struct {
 	Url       string `json:"url"`
 	Container string `json:"container"`
 	Size      string `json:"size"`
+	Itag      string `json:"itag"`
+}
+
+type VideoThumbnail struct {
+	Quality string `json:"quality"`
+	URL     string `json:"url"`
+	Width   int    `json:"width"`
+	Height  int    `json:"height"`
 }
 
 func (c *Client) fetchVideo(videoId string) (*Video, int) {
@@ -48,7 +56,11 @@ func (c *Client) fetchVideo(videoId string) (*Video, int) {
 		return nil, http.StatusInternalServerError
 	}
 
-	mp4Test := func(f Format) bool { return f.Container == "mp4" }
+	if len(res.VideoThumbnails) > 0 {
+		res.Thumbnail = res.VideoThumbnails[0].URL
+	}
+
+	mp4Test := func(f Format) bool { return f.Itag == "18" }
 	res.Formats = filter(res.Formats, mp4Test)
 
 	expireString := expireRegex.FindStringSubmatch(res.Formats[0].Url)

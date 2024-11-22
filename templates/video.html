@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+<!doctype html>
+<!--
     ███████ ██ ██   ██ ██    ██   ███   ██   ██ ██████ ██   ██ ██████  ███████ 
     ██      ██  ██ ██   ██  ██  ██   ██ ██   ██   ██   ██   ██ ██   ██ ██      
     █████   ██   ███     ████   ██   ██ ██   ██   ██   ██   ██ ██████  █████   
@@ -7,9 +8,14 @@
     ██
     ██  A better way to embed YouTube videos on Telegram (inspired by FixTweet).
     ██  
-<html lang="en"><head>
+-->
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .Title }} - GoPipe</title>
     <link rel="canonical" href="https://www.youtube.com/watch?v={{ .VideoId }}" />
-    <meta http-equiv="refresh" content="0;url=https://www.youtube.com/watch?v={{ .VideoId }}" />
     <meta property="og:url" content="https://www.youtube.com/watch?v={{ .VideoId }}" />
     <meta property="theme-color" content="0000FF" />
     <meta property="twitter:card" content="player" />
@@ -18,8 +24,8 @@
     <meta property="twitter:title" content="{{ .Title }}" />
     <meta property="og:title" content="{{ .Title }}" />
     <meta property="og:description" content="{{ .Description }}" />
-    <meta property="og:site_name" content="FixYouTube ({{ .Uploader }})" />
-    <meta property="twitter:image" content="0" />
+    <meta property="og:site_name" content="GoPipe ({{ .Uploader }})" />
+    <meta property="twitter:image" content="{{ .Thumbnail }}" />
     <meta property="twitter:player:stream:content_type" content="video/mp4" />
     {{ if .Url }}
     <meta property="og:video" content="{{ .Url }}" />
@@ -27,4 +33,30 @@
     <meta property="og:video:duration" content="{{ .Duration }}">
     <meta property="og:video:type" content="video/mp4" />
     {{ end }}
-</head><body></body></html>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text fill=%22white%22 y=%22.9em%22 font-size=%2290%22>🛠</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+</head>
+
+<body>
+    <main class="container" style="max-width: 35rem">
+        <video style="width: 100%" autoplay controls>
+            <source src="{{ .Url }}" type="video/mp4" />
+        </video>
+        <h2>{{ .Title }}</h2>
+        <h3>&gt; {{ .Uploader }}</h3>
+        <pre style="white-space: pre-wrap">{{ .Description }}</pre>
+        <a href="https://www.youtube.com/watch?v={{ .VideoId }}">Watch on YouTube</a>
+        <br />
+        <a href="/">What is this?</a>
+        <hr>
+        <section>
+            <small>
+                <a href="https://github.com/birabittoh/fixyoutube-go" target="_blank">Source code</a>
+            </small>
+            <br />
+            <small>• YouTube is a trademark of Google LLC. This app is not affiliated with Google LLC.</small>
+        </section>
+    </main>
+</body>
+
+</html>

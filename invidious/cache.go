@@ -42,7 +42,7 @@ func CacheVideoDB(v Video) error {
 	}
 	defer cacheVideo.Close()
 
-	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Url, v.Expire)
+	_, err = cacheVideo.Exec(v.VideoId, v.Title, v.Description, v.Uploader, v.Duration, v.Url, v.Thumbnail, v.Expire)
 	if err != nil {
 		logger.Error("Could not cache video: ", err)
 		return err
@@ -63,7 +63,7 @@ func GetVideoDB(videoId string) (*Video, error) {
 	defer getVideo.Close()
 
 	v := &Video{}
-	err = getVideo.QueryRow(videoId).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &v.Url, &v.Expire)
+	err = getVideo.QueryRow(videoId).Scan(&v.VideoId, &v.Title, &v.Description, &v.Uploader, &v.Duration, &v.Url, &v.Thumbnail, &v.Expire)
 	if err != nil {
 		logger.Debug("Could not get video:", err)
 		return nil, err

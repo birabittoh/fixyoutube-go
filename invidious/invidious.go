@@ -37,14 +37,16 @@ type Client struct {
 }
 
 type Video struct {
-	VideoId     string   `json:"videoId"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Uploader    string   `json:"author"`
-	Duration    int      `json:"lengthSeconds"`
-	Formats     []Format `json:"formatStreams"`
-	Expire      time.Time
-	Url         string
+	VideoId         string           `json:"videoId"`
+	Title           string           `json:"title"`
+	Description     string           `json:"description"`
+	Uploader        string           `json:"author"`
+	VideoThumbnails []VideoThumbnail `json:"videoThumbnails"`
+	Duration        int              `json:"lengthSeconds"`
+	Formats         []Format         `json:"formatStreams"`
+	Expire          time.Time
+	Url             string
+	Thumbnail       string
 }
 
 func filter[T any](ss []T, test func(T) bool) (ret []T) {

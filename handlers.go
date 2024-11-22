@@ -38,7 +38,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 func clearHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 
@@ -63,13 +63,15 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 
 func videoHandler(videoId string, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
 	url := "https://www.youtube.com/watch?v=" + videoId
-	userAgent := r.UserAgent()
-	res := userAgentRegex.MatchString(userAgent)
-	if !res {
-		logger.Debug("Regex did not match. Redirecting. UA:", userAgent)
-		http.Redirect(w, r, url, http.StatusMovedPermanently)
-		return
-	}
+	/*
+		userAgent := r.UserAgent()
+		res := userAgentRegex.MatchString(userAgent)
+		if !res {
+			logger.Debug("Regex did not match. Redirecting. UA:", userAgent)
+			http.Redirect(w, r, url, http.StatusFound)
+			return
+		}
+	*/
 
 	if !videoRegex.MatchString(videoId) {
 		logger.Info("Invalid video ID: ", videoId)
@@ -86,7 +88,7 @@ func videoHandler(videoId string, invidiousClient *invidious.Client, w http.Resp
 
 	if video.Url == "" {
 		logger.Debug("No URL available. Redirecting.")
-		http.Redirect(w, r, url, http.StatusMovedPermanently)
+		http.Redirect(w, r, url, http.StatusFound)
 		return
 	}
 

@@ -8,11 +8,12 @@ CREATE TABLE IF NOT EXISTS videos (
     uploader TEXT NOT NULL,
     duration int NOT NULL,
     url TEXT NOT NULL,
+    thumbnail TEXT,
     expire DATETIME NOT NULL
 );`
 
 const getVideoQuery = "SELECT * FROM videos WHERE videoId = (?);"
 
-const cacheVideoQuery = "INSERT OR REPLACE INTO videos (videoId, title, description, uploader, duration, url, expire) VALUES (?, ?, ?, ?, ?, ?, ?);"
+const cacheVideoQuery = "INSERT OR REPLACE INTO videos (videoId, title, description, uploader, duration, url, thumbnail, expire) VALUES (?, ?, ?, ?, ?, ?, ?);"
 
 const clearQuery = "DELETE FROM videos;"
