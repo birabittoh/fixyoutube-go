@@ -22,8 +22,8 @@
     <meta property="twitter:image" content="0" />
     <meta property="twitter:player:stream:content_type" content="video/mp4" />
     {{ if .Url }}
-    <meta property="og:video" content="/proxy/{{ .VideoId }}" />
-    <meta property="og:video:secure_url" content="/proxy/{{ .VideoId }}" />
+    <meta property="og:video" content="{{ .Url }}" />
+    <meta property="og:video:secure_url" content="{{ .Url }}" />
     <meta property="og:video:duration" content="{{ .Duration }}">
     <meta property="og:video:type" content="video/mp4" />
     {{ end }}
