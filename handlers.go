@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/BiRabittoh/fixyoutube-go/invidious"
+	"github.com/birabittoh/fixyoutube-go/invidious"
 )
 
 const templatesDirectory = "templates/"
@@ -56,37 +56,28 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invidious.ClearDB()
+	// rabbitpipe.ClearDB()
 	logger.Info("Cache cleared.")
 	http.Error(w, "Done.", http.StatusOK)
 }
 
-func videoHandler(videoId string, invidiousClient *invidious.Client, w http.ResponseWriter, r *http.Request) {
-	url := "https://www.youtube.com/watch?v=" + videoId
-	/*
-		userAgent := r.UserAgent()
-		res := userAgentRegex.MatchString(userAgent)
-		if !res {
-			logger.Debug("Regex did not match. Redirecting. UA:", userAgent)
-			http.Redirect(w, r, url, http.StatusFound)
-			return
-		}
-	*/
+func videoHandler(videoID string, w http.ResponseWriter, r *http.Request) {
+	url := "https://www.youtube.com/watch?v=" + videoID
 
-	if !videoRegex.MatchString(videoId) {
-		logger.Info("Invalid video ID: ", videoId)
+	if !videoRegex.MatchString(videoID) {
+		logger.Info("Invalid video ID: ", videoID)
 		http.Error(w, "Invalid video ID.", http.StatusBadRequest)
 		return
 	}
 
-	video, err := invidiousClient.GetVideo(videoId, true)
-	if err != nil {
-		logger.Info("Wrong video ID: ", videoId)
+	video, err := invidious.RP.GetVideo(videoID)
+	if err != nil || video == nil {
+		logger.Info("Wrong video ID: ", videoID)
 		http.Error(w, "Wrong video ID.", http.StatusNotFound)
 		return
 	}
 
-	if video.Url == "" {
+	if invidious.GetVideoURL(*video) == "" {
 		logger.Debug("No URL available. Redirecting.")
 		http.Redirect(w, r, url, http.StatusFound)
 		return
@@ -102,47 +93,43 @@ func videoHandler(videoId string, invidiousClient *invidious.Client, w http.Resp
 	buf.WriteTo(w)
 }
 
-func watchHandler(invidiousClient *invidious.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, err := url.Parse(r.URL.String())
-		if err != nil {
-			logger.Error("Failed to parse URL: ", r.URL.String())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		q := u.Query()
-		videoId := q.Get("v")
-		videoHandler(videoId, invidiousClient, w, r)
+func watchHandler(w http.ResponseWriter, r *http.Request) {
+	u, err := url.Parse(r.URL.String())
+	if err != nil {
+		logger.Error("Failed to parse URL: ", r.URL.String())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	q := u.Query()
+	videoId := q.Get("v")
+	videoHandler(videoId, w, r)
 }
 
-func shortHandler(invidiousClient *invidious.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		videoId := r.PathValue("videoId")
-		videoHandler(videoId, invidiousClient, w, r)
-	}
+func shortHandler(w http.ResponseWriter, r *http.Request) {
+	videoId := r.PathValue("videoId")
+	videoHandler(videoId, w, r)
+	return
 }
 
-func proxyHandler(invidiousClient *invidious.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		videoId := r.PathValue("videoId")
+func proxyHandler(w http.ResponseWriter, r *http.Request) {
+	videoId := r.PathValue("videoId")
 
-		vb, s := invidiousClient.ProxyVideoId(videoId)
-		if s != http.StatusOK {
-			logger.Error("proxyHandler() failed. Final code: ", s)
-			http.Error(w, http.StatusText(s), s)
-			return
-		}
-		if !vb.ValidateLength() {
-			logger.Error("Buffer length is inconsistent.")
-			status := http.StatusInternalServerError
-			http.Error(w, http.StatusText(status), status)
-			return
-		}
-		h := w.Header()
-		h.Set("Status", "200")
-		h.Set("Content-Type", "video/mp4")
-		h.Set("Content-Length", strconv.FormatInt(vb.Length, 10))
-		io.Copy(w, vb.Buffer)
+	vb, s := invidious.ProxyVideoId(videoId)
+	if s != http.StatusOK {
+		logger.Error("proxyHandler() failed. Final code: ", s)
+		http.Error(w, http.StatusText(s), s)
+		return
 	}
+	if !vb.ValidateLength() {
+		logger.Error("Buffer length is inconsistent.")
+		status := http.StatusInternalServerError
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+	h := w.Header()
+	h.Set("Status", "200")
+	h.Set("Content-Type", "video/mp4")
+	h.Set("Content-Length", strconv.FormatInt(vb.Length, 10))
+	io.Copy(w, vb.Buffer)
 }

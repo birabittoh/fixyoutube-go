@@ -15,24 +15,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ .Title }} - FixYouTube</title>
-    <link rel="canonical" href="https://www.youtube.com/watch?v={{ .VideoId }}" />
-    <meta property="og:url" content="https://www.youtube.com/watch?v={{ .VideoId }}" />
+    <link rel="canonical" href="https://www.youtube.com/watch?v={{ .VideoID }}" />
+    <meta property="og:url" content="https://www.youtube.com/watch?v={{ .VideoID }}" />
     <meta property="theme-color" content="0000FF" />
     <meta property="twitter:card" content="player" />
-    <meta property="twitter:site" content="{{ .Uploader }}" />
-    <meta property="twitter:creator" content="{{ .Uploader }}" />
+    <meta property="twitter:site" content="{{ .Author }}" />
+    <meta property="twitter:creator" content="{{ .Author }}" />
     <meta property="twitter:title" content="{{ .Title }}" />
     <meta property="og:title" content="{{ .Title }}" />
     <meta property="og:description" content="{{ .Description }}" />
-    <meta property="og:site_name" content="FixYouTube ({{ .Uploader }})" />
-    <meta property="twitter:image" content="{{ .Thumbnail }}" />
-    <meta property="twitter:player:stream:content_type" content="video/mp4" />
-    {{ if .Url }}
-    <meta property="og:video" content="/proxy/{{ .VideoId }}" />
-    <meta property="og:video:secure_url" content="/proxy/{{ .VideoId }}" />
-    <meta property="og:video:duration" content="{{ .Duration }}">
-    <meta property="og:video:type" content="video/mp4" />
+    <meta property="og:site_name" content="FixYouTube ({{ .Author }})" />
+    {{ if gt (len .VideoThumbnails) 0 }}
+    <meta property="twitter:image" content="{{ (index .VideoThumbnails 0).URL }}" />
     {{ end }}
+    <meta property="twitter:player:stream:content_type" content="video/mp4" />
+    <meta property="og:video" content="/proxy/{{ .VideoID }}" />
+    <meta property="og:video:secure_url" content="/proxy/{{ .VideoID }}" />
+    <meta property="og:video:duration" content="{{ .LengthSeconds }}">
+    <meta property="og:video:type" content="video/mp4" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text fill=%22white%22 y=%22.9em%22 font-size=%2290%22>🛠</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
 </head>
@@ -40,12 +40,12 @@
 <body>
     <main class="container" style="max-width: 35rem">
         <video style="width: 100%" autoplay controls>
-            <source src="/proxy/{{ .VideoId }}" type="video/mp4" />
+            <source src="/proxy/{{ .VideoID }}" type="video/mp4" />
         </video>
         <h2>{{ .Title }}</h2>
-        <h3>&gt; {{ .Uploader }}</h3>
+        <h3>&gt; {{ .Author }}</h3>
         <pre style="white-space: pre-wrap">{{ .Description }}</pre>
-        <a href="https://www.youtube.com/watch?v={{ .VideoId }}">Watch on YouTube</a>
+        <a href="https://www.youtube.com/watch?v={{ .VideoID }}">Watch on YouTube</a>
         <br />
         <a href="/">What is this?</a>
         <hr>

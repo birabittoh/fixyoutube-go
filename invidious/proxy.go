@@ -4,9 +4,14 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/birabittoh/rabbitpipe"
 )
 
-func (c *Client) urlToBuffer(url string) (*VideoBuffer, int) {
+const MaxSizeBytes = int64(20 * 1024 * 1024)
+
+func urlToBuffer(url string) (*VideoBuffer, int) {
 	if url == "" {
 		return nil, http.StatusBadRequest
 	}
@@ -17,7 +22,7 @@ func (c *Client) urlToBuffer(url string) (*VideoBuffer, int) {
 		return nil, http.StatusInternalServerError
 	}
 
-	resp, err := c.http.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		logger.Error(err) // request failed
 		return nil, http.StatusGone
@@ -31,7 +36,7 @@ func (c *Client) urlToBuffer(url string) (*VideoBuffer, int) {
 		return nil, http.StatusNoContent
 	}
 
-	if resp.ContentLength > c.Options.MaxSizeBytes {
+	if resp.ContentLength > MaxSizeBytes {
 		logger.Debug("Content-Length exceeds max size.")
 		return nil, http.StatusBadRequest
 	}
@@ -47,29 +52,14 @@ func (c *Client) urlToBuffer(url string) (*VideoBuffer, int) {
 	return &VideoBuffer{b, l}, http.StatusOK
 }
 
-func (c *Client) findCompatibleFormat(video *Video) (*VideoBuffer, int) {
-	for i := len(video.Formats) - 1; i >= 0; i-- {
-		url := video.Formats[i].Url
-		logger.Debug(url)
-		vb, httpStatus := c.urlToBuffer(url)
-		if httpStatus == http.StatusOK {
-			videoBuffer := vb.Clone()
-			c.buffers.Set(video.VideoId, videoBuffer)
-			return vb, i
-		}
-		logger.Debug("Format ", i, "failed with status code ", httpStatus)
-	}
-	return nil, -1
-}
-
-func (c *Client) getBuffer(video Video) (*VideoBuffer, int) {
-	vb, err := c.buffers.Get(video.VideoId)
+func getBuffer(video rabbitpipe.Video) (*VideoBuffer, int) {
+	vb, err := buffers.Get(video.VideoID)
 	if err != nil {
 		// no cache entry
-		vb, s := c.urlToBuffer(video.Url)
+		vb, s := urlToBuffer(GetVideoURL(video))
 		if vb != nil {
 			if s == http.StatusOK && vb.Length > 0 {
-				c.buffers.Set(video.VideoId, vb.Clone())
+				buffers.Set(video.VideoID, *vb, 5*time.Minute)
 				return vb, s
 			}
 		}
@@ -80,11 +70,11 @@ func (c *Client) getBuffer(video Video) (*VideoBuffer, int) {
 	return videoBuffer, http.StatusOK
 }
 
-func (c *Client) ProxyVideoId(videoId string) (*VideoBuffer, int) {
-	video, err := GetVideoDB(videoId)
+func ProxyVideoId(videoID string) (*VideoBuffer, int) {
+	video, err := RP.GetVideo(videoID)
 	if err != nil {
-		logger.Info("Cannot proxy a video that is not cached: https://youtu.be/", videoId)
+		logger.Info("Cannot get video: https://youtu.be/", videoID)
 		return nil, http.StatusBadRequest
 	}
-	return c.getBuffer(*video)
+	return getBuffer(*video)
 }

@@ -4,9 +4,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 
-	"github.com/BiRabittoh/fixyoutube-go/invidious"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
@@ -62,26 +60,13 @@ func main() {
 	port := getenvDefault("PORT", "3000")
 	burstTokens := getenvDefaultParse("BURST_TOKENS", "3")
 	rateLimit := getenvDefaultParse("RATE_LIMIT", "1")
-	cacheDuration := getenvDefaultParse("CACHE_DURATION_MINUTES", "5")
-	timeoutDuration := getenvDefaultParse("TIMEOUT_DURATION_MINUTES", "10")
-	cleanupInterval := getenvDefaultParse("CLEANUP_INTERVAL_SECONDS", "30")
-	maxSizeMB := getenvDefaultParse("MAX_SIZE_MB", "20")
-
-	myClient := &http.Client{Timeout: 10 * time.Second}
-	options := invidious.ClientOptions{
-		CacheDuration:   time.Duration(cacheDuration) * time.Minute,
-		TimeoutDuration: time.Duration(timeoutDuration) * time.Minute,
-		CleanupInterval: time.Duration(cleanupInterval) * time.Second,
-		MaxSizeBytes:    int64(maxSizeMB * 1000000),
-	}
-	videoapi := invidious.NewClient(myClient, options)
 
 	r := http.NewServeMux()
 	r.HandleFunc("/", indexHandler)
 	r.HandleFunc("/clear", clearHandler)
-	r.HandleFunc("/watch", watchHandler(videoapi))
-	r.HandleFunc("/proxy/{videoId}", proxyHandler(videoapi))
-	r.HandleFunc("/{videoId}", shortHandler(videoapi))
+	r.HandleFunc("/watch", watchHandler)
+	r.HandleFunc("/proxy/{videoId}", proxyHandler)
+	r.HandleFunc("/{videoId}", shortHandler)
 
 	var serveMux http.Handler
 	if debugSwitch {
