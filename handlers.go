@@ -17,11 +17,11 @@ const templatesDirectory = "templates/"
 
 var (
 	//go:embed templates/index.html templates/video.html
-	templates      embed.FS
-	indexTemplate  = template.Must(template.ParseFS(templates, templatesDirectory+"index.html"))
-	videoTemplate  = template.Must(template.ParseFS(templates, templatesDirectory+"video.html"))
-	userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
-	videoRegex     = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
+	templates     embed.FS
+	indexTemplate = template.Must(template.ParseFS(templates, templatesDirectory+"index.html"))
+	videoTemplate = template.Must(template.ParseFS(templates, templatesDirectory+"video.html"))
+	// userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
+	videoRegex = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
 )
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,31 +34,6 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	buf.WriteTo(w)
-}
-
-func clearHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
-
-	err := r.ParseForm()
-	if err != nil {
-		logger.Error("Failed to parse form in /clear.")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	providedKey := r.PostForm.Get("apiKey")
-	if providedKey != apiKey {
-		logger.Debug("Wrong API key: ", providedKey)
-		http.Error(w, "Wrong or missing API key.", http.StatusForbidden)
-		return
-	}
-
-	// rabbitpipe.ClearDB()
-	logger.Info("Cache cleared.")
-	http.Error(w, "Done.", http.StatusOK)
 }
 
 func videoHandler(videoID string, w http.ResponseWriter, r *http.Request) {
@@ -109,7 +84,6 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 func shortHandler(w http.ResponseWriter, r *http.Request) {
 	videoId := r.PathValue("videoId")
 	videoHandler(videoId, w, r)
-	return
 }
 
 func proxyHandler(w http.ResponseWriter, r *http.Request) {

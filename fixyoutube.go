@@ -11,7 +11,6 @@ import (
 )
 
 var (
-	apiKey      string
 	debugSwitch = false
 	logger      = logrus.New()
 )
@@ -56,14 +55,12 @@ func main() {
 		debugSwitch = true
 	}
 
-	apiKey = getenvDefault("API_KEY", "itsme")
 	port := getenvDefault("PORT", "3000")
 	burstTokens := getenvDefaultParse("BURST_TOKENS", "3")
 	rateLimit := getenvDefaultParse("RATE_LIMIT", "1")
 
 	r := http.NewServeMux()
 	r.HandleFunc("/", indexHandler)
-	r.HandleFunc("/clear", clearHandler)
 	r.HandleFunc("/watch", watchHandler)
 	r.HandleFunc("/proxy/{videoId}", proxyHandler)
 	r.HandleFunc("/{videoId}", shortHandler)

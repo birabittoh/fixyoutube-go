@@ -55,19 +55,19 @@ func urlToBuffer(url string) (*VideoBuffer, int) {
 func getBuffer(video rabbitpipe.Video) (*VideoBuffer, int) {
 	vb, err := buffers.Get(video.VideoID)
 	if err != nil {
-		// no cache entry
+		// cached buffer not found
 		vb, s := urlToBuffer(GetVideoURL(video))
 		if vb != nil {
 			if s == http.StatusOK && vb.Length > 0 {
-				buffers.Set(video.VideoID, *vb, 5*time.Minute)
+				buffers.Set(video.VideoID, *vb.Clone(), 5*time.Minute)
 				return vb, s
 			}
 		}
 		return nil, s
 	}
-	//cache entry
-	videoBuffer := vb.Clone()
-	return videoBuffer, http.StatusOK
+
+	// cached buffer found
+	return vb.Clone(), http.StatusOK
 }
 
 func ProxyVideoId(videoID string) (*VideoBuffer, int) {
