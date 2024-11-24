@@ -60,10 +60,11 @@ func main() {
 	rateLimit := getenvDefaultParse("RATE_LIMIT", "1")
 
 	r := http.NewServeMux()
-	r.HandleFunc("/", indexHandler)
-	r.HandleFunc("/watch", watchHandler)
-	r.HandleFunc("/proxy/{videoId}", proxyHandler)
-	r.HandleFunc("/{videoId}", shortHandler)
+	r.HandleFunc("GET /", indexHandler)
+	r.HandleFunc("GET /watch", watchHandler)
+	r.HandleFunc("GET /proxy/{videoId}", proxyHandler)
+	r.HandleFunc("GET /{videoId}", shortHandler)
+	r.HandleFunc("POST /download", downloadHandler)
 
 	var serveMux http.Handler
 	if debugSwitch {

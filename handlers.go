@@ -1,16 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"embed"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/birabittoh/fixyoutube-go/invidious"
+	"github.com/birabittoh/rabbitpipe"
 )
 
 const templatesDirectory = "templates/"
@@ -19,21 +22,55 @@ var (
 	//go:embed templates/index.html templates/video.html
 	templates     embed.FS
 	indexTemplate = template.Must(template.ParseFS(templates, templatesDirectory+"index.html"))
-	videoTemplate = template.Must(template.ParseFS(templates, templatesDirectory+"video.html"))
+	videoTemplate = template.Must(template.New("video.html").Funcs(template.FuncMap{"parseFormat": parseFormat}).ParseFS(templates, templatesDirectory+"video.html"))
 	// userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
 	videoRegex = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
 )
 
+func parseFormat(f rabbitpipe.Format) (res string) {
+	isAudio := f.AudioChannels > 0
+
+	if isAudio {
+		bitrate, err := strconv.Atoi(f.Bitrate)
+		if err != nil {
+			logger.Error("Failed to convert bitrate to integer.")
+			return
+		}
+		res = strconv.Itoa(bitrate/1000) + "kbps"
+	} else {
+		res = f.Resolution
+	}
+
+	mime := strings.Split(f.Type, ";")
+	res += " - " + mime[0]
+
+	codecs := " (" + strings.Split(mime[1], "\"")[1] + ")"
+
+	if !isAudio {
+		res += fmt.Sprintf(" (%d FPS)", f.FPS)
+	}
+
+	res += codecs
+	return
+}
+
+func getItag(formats []rabbitpipe.Format, itag string) *rabbitpipe.Format {
+	for _, f := range formats {
+		if f.Itag == itag {
+			return &f
+		}
+	}
+
+	return nil
+}
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	buf := &bytes.Buffer{}
-	err := indexTemplate.Execute(buf, nil)
+	err := indexTemplate.Execute(w, nil)
 	if err != nil {
 		logger.Error("Failed to fill index template.")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	buf.WriteTo(w)
 }
 
 func videoHandler(videoID string, w http.ResponseWriter, r *http.Request) {
@@ -58,14 +95,12 @@ func videoHandler(videoID string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buf := &bytes.Buffer{}
-	err = videoTemplate.Execute(buf, video)
+	err = videoTemplate.Execute(w, video)
 	if err != nil {
 		logger.Error("Failed to fill video template.")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	buf.WriteTo(w)
 }
 
 func watchHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,4 +141,41 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", "video/mp4")
 	h.Set("Content-Length", strconv.FormatInt(vb.Length, 10))
 	io.Copy(w, vb.Buffer)
+}
+
+func downloadHandler(w http.ResponseWriter, r *http.Request) {
+	videoID := r.FormValue("video")
+	if videoID == "" {
+		http.Error(w, "Missing video ID", http.StatusBadRequest)
+		return
+	}
+
+	if !videoRegex.MatchString(videoID) {
+		log.Println("Invalid video ID:", videoID)
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	itag := r.FormValue("itag")
+	if itag == "" {
+		http.Error(w, "not found", http.StatusBadRequest)
+		return
+	}
+
+	video, err := invidious.RP.GetVideo(videoID)
+	if err != nil || video == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	format := getItag(video.FormatStreams, itag)
+	if format == nil {
+		format = getItag(video.AdaptiveFormats, itag)
+		if format == nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	http.Redirect(w, r, format.URL, http.StatusFound)
 }

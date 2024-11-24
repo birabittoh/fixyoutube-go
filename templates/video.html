@@ -47,6 +47,26 @@
         <h2>{{ .Title }}</h2>
         <h3>&gt; <a href="https://www.youtube.com/{{ .AuthorURL }}" target="_blank">{{ .Author }}</a></h3>
         <pre style="white-space: pre-wrap">{{ .DescriptionHTML }}</pre>
+        <form action="/download" method="post" rel="noopener" target="_blank" style="display: grid; grid-template-columns: auto auto; justify-content: space-between;">
+            <input type="hidden" name="video" value="{{ .VideoID }}">
+            <select name="itag">
+                <optgroup label="Full">
+                {{ range .FormatStreams }}
+                    <option value="{{ .Itag }}">
+                        {{ parseFormat . }}
+                    </option>
+                {{ end }}
+                </optgroup>
+                <optgroup label="Partial">
+                {{ range .AdaptiveFormats }}
+                    <option value="{{ .Itag }}">
+                        {{ parseFormat . }}
+                    </option>
+                {{ end }}
+                </optgroup>
+            </select>
+            <button type="submit">Download</button>
+        </form>
         <a href="https://www.youtube.com/watch?v={{ .VideoID }}">Watch on YouTube</a>
         <br />
         <a href="/">What is this?</a>

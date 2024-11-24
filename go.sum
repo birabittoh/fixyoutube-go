@@ -2,6 +2,8 @@ github.com/birabittoh/myks v0.0.2 h1:EBukMUsAflwiqdNo4LE7o2WQdEvawty5ewCZWY+IXSU
 github.com/birabittoh/myks v0.0.2/go.mod h1:klNWaeUWm7TmhnBHBMt9vALwCHW11/Xw1BpCNkCx7hs=
 github.com/birabittoh/rabbitpipe v0.0.2 h1:4ptBS4Ai9NJH9gv3uG5TZBp1H5gfgEabEw6XldSjUx0=
 github.com/birabittoh/rabbitpipe v0.0.2/go.mod h1:6cEDb0WpwrRm2vt5IO3s2gPjzhZZLP7gYx+l9e3gx1k=
+github.com/birabittoh/rabbitpipe v0.0.5 h1:mHdAyeNKSDvZqnPZfUnrmKvD7JTzt1ztSrW5k4/opGM=
+github.com/birabittoh/rabbitpipe v0.0.5/go.mod h1:6cEDb0WpwrRm2vt5IO3s2gPjzhZZLP7gYx+l9e3gx1k=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

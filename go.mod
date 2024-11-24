@@ -7,7 +7,7 @@ toolchain go1.23.3
 require github.com/joho/godotenv v1.5.1
 
 require (
-	github.com/birabittoh/rabbitpipe v0.0.2
+	github.com/birabittoh/rabbitpipe v0.0.5
 	golang.org/x/time v0.5.0
 )
 

@@ -11,7 +11,7 @@ import (
 
 var logger = logrus.New()
 var buffers = myks.New[VideoBuffer](time.Minute)
-var RP = rabbitpipe.New()
+var RP = rabbitpipe.New("")
 
 type VideoBuffer struct {
 	Buffer *bytes.Buffer
