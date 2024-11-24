@@ -112,19 +112,19 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := u.Query()
-	videoId := q.Get("v")
-	videoHandler(videoId, w, r)
+	videoID := q.Get("v")
+	videoHandler(videoID, w, r)
 }
 
 func shortHandler(w http.ResponseWriter, r *http.Request) {
-	videoId := r.PathValue("videoId")
-	videoHandler(videoId, w, r)
+	videoID := r.PathValue("videoID")
+	videoHandler(videoID, w, r)
 }
 
 func proxyHandler(w http.ResponseWriter, r *http.Request) {
-	videoId := r.PathValue("videoId")
+	videoID := r.PathValue("videoID")
 
-	vb, s := invidious.ProxyVideoId(videoId)
+	vb, s := invidious.ProxyVideoId(videoID)
 	if s != http.StatusOK {
 		logger.Error("proxyHandler() failed. Final code: ", s)
 		http.Error(w, http.StatusText(s), s)
@@ -178,4 +178,25 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, format.URL, http.StatusFound)
+}
+
+func refreshHandler(w http.ResponseWriter, r *http.Request) {
+	videoID := r.PathValue("videoID")
+	if videoID == "" {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	if !videoRegex.MatchString(videoID) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	video, err := invidious.RP.GetVideoNoCache(videoID)
+	if err != nil || video == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	http.Redirect(w, r, "/"+videoID, http.StatusFound)
 }
