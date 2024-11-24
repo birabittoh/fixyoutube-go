@@ -19,22 +19,17 @@ type VideoBuffer struct {
 }
 
 func GetVideoURL(video rabbitpipe.Video) string {
-	for _, format := range video.FormatStreams {
-		if format.Itag == "18" {
-			return format.URL
-		}
+	if len(video.FormatStreams) == 0 {
+		return ""
 	}
-	return ""
+	return video.FormatStreams[0].URL
 }
 
 func NewVideoBuffer(b *bytes.Buffer, l int64) *VideoBuffer {
 	d := new(bytes.Buffer)
 	d.Write(b.Bytes())
 
-	return &VideoBuffer{
-		Buffer: d,
-		Length: l,
-	}
+	return &VideoBuffer{Buffer: d, Length: l}
 }
 
 func (vb *VideoBuffer) Clone() *VideoBuffer {

@@ -39,12 +39,14 @@
 
 <body>
     <main class="container" style="max-width: 35rem">
+        {{ if gt (len .FormatStreams) 0 }}
         <video style="width: 100%" autoplay controls>
-            <source src="/proxy/{{ .VideoID }}" type="video/mp4" />
+            <source src="{{ (index .FormatStreams 0).URL }}" type="video/mp4" />
         </video>
+        {{ end }}
         <h2>{{ .Title }}</h2>
-        <h3>&gt; {{ .Author }}</h3>
-        <pre style="white-space: pre-wrap">{{ .Description }}</pre>
+        <h3>&gt; <a href="https://www.youtube.com/{{ .AuthorURL }}" target="_blank">{{ .Author }}</a></h3>
+        <pre style="white-space: pre-wrap">{{ .DescriptionHTML }}</pre>
         <a href="https://www.youtube.com/watch?v={{ .VideoID }}">Watch on YouTube</a>
         <br />
         <a href="/">What is this?</a>
