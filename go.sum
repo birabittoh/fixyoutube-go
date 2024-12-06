@@ -1,9 +1,7 @@
 github.com/birabittoh/myks v0.0.2 h1:EBukMUsAflwiqdNo4LE7o2WQdEvawty5ewCZWY+IXSU=
 github.com/birabittoh/myks v0.0.2/go.mod h1:klNWaeUWm7TmhnBHBMt9vALwCHW11/Xw1BpCNkCx7hs=
-github.com/birabittoh/rabbitpipe v0.0.2 h1:4ptBS4Ai9NJH9gv3uG5TZBp1H5gfgEabEw6XldSjUx0=
-github.com/birabittoh/rabbitpipe v0.0.2/go.mod h1:6cEDb0WpwrRm2vt5IO3s2gPjzhZZLP7gYx+l9e3gx1k=
-github.com/birabittoh/rabbitpipe v0.0.5 h1:mHdAyeNKSDvZqnPZfUnrmKvD7JTzt1ztSrW5k4/opGM=
-github.com/birabittoh/rabbitpipe v0.0.5/go.mod h1:6cEDb0WpwrRm2vt5IO3s2gPjzhZZLP7gYx+l9e3gx1k=
+github.com/birabittoh/rabbitpipe v0.0.6 h1:n5/FHl1QEtc25IzP/uSNC9jnRwCSb2lm/t3LxywQeDo=
+github.com/birabittoh/rabbitpipe v0.0.6/go.mod h1:6cEDb0WpwrRm2vt5IO3s2gPjzhZZLP7gYx+l9e3gx1k=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -17,10 +15,10 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.17.0 h1:25cE3gD+tdBA7lp7QfhuV+rJiE9YXTcS3VG1SqssI/Y=
-golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
-golang.org/x/time v0.5.0 h1:o7cqy6amK/52YcAKIPlM3a+Fpj35zvRj2TP+e1xFSfk=
-golang.org/x/time v0.5.0/go.mod h1:3BpzKBy/shNhVucY/MWOyx10tF3SFh9QdLuxbVysPQM=
+golang.org/x/sys v0.28.0 h1:Fksou7UEQUWlKvIdsqzJmUmCX3cZuD2+P3XyyzwMhlA=
+golang.org/x/sys v0.28.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/time v0.8.0 h1:9i3RxcPv3PZnitoVGMPDKZSq1xW1gK1Xy3ArNOGZfEg=
+golang.org/x/time v0.8.0/go.mod h1:3BpzKBy/shNhVucY/MWOyx10tF3SFh9QdLuxbVysPQM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

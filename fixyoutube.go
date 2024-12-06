@@ -62,9 +62,10 @@ func main() {
 	r := http.NewServeMux()
 	r.HandleFunc("GET /", indexHandler)
 	r.HandleFunc("GET /watch", watchHandler)
-	r.HandleFunc("GET /{videoID}", shortHandler)
+	r.HandleFunc("GET /shorts/{videoID}", shortHandler)
 	r.HandleFunc("GET /proxy/{videoID}", proxyHandler)
 	r.HandleFunc("GET /refresh/{videoID}", refreshHandler)
+	r.HandleFunc("GET /{videoID}", shortHandler)
 
 	r.HandleFunc("POST /download", downloadHandler)
 

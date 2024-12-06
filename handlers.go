@@ -4,7 +4,6 @@ import (
 	"embed"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -151,7 +150,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !videoRegex.MatchString(videoID) {
-		log.Println("Invalid video ID:", videoID)
+		logger.Println("Invalid video ID:", videoID)
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
