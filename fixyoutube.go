@@ -26,7 +26,7 @@ func limit(limiter *rate.Limiter, next http.Handler) http.Handler {
 	})
 }
 
-func getenvDefault(key string, def string) string {
+func getEnvDefault(key string, def string) string {
 	res := os.Getenv(key)
 	if res == "" {
 		return def
@@ -34,8 +34,8 @@ func getenvDefault(key string, def string) string {
 	return res
 }
 
-func getenvDefaultParse(key string, def string) float64 {
-	value := getenvDefault(key, def)
+func getEnvDefaultParse(key string, def string) float64 {
+	value := getEnvDefault(key, def)
 	res, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		logger.Fatal(err)
@@ -49,15 +49,28 @@ func main() {
 		logger.Info("No .env file provided.")
 	}
 
-	if os.Getenv("DEBUG") != "" {
+	logLevel, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		logLevel = logrus.InfoLevel
+	}
+	logger.SetLevel(logLevel)
+
+	if logLevel == logrus.DebugLevel {
 		logger.SetLevel(logrus.DebugLevel)
 		logger.Debug("Debug mode enabled (rate limiting is disabled)")
 		debugSwitch = true
 	}
 
-	port := getenvDefault("PORT", "3000")
-	burstTokens := getenvDefaultParse("BURST_TOKENS", "3")
-	rateLimit := getenvDefaultParse("RATE_LIMIT", "1")
+	port := getEnvDefault("PORT", "3000")
+	burstTokens := getEnvDefaultParse("BURST_TOKENS", "3")
+	rateLimit := getEnvDefaultParse("RATE_LIMIT", "1")
+
+	adminUser = getEnvDefault("ADMIN_USER", "admin")
+	adminPass = getEnvDefault("ADMIN_PASS", "admin")
+
+	if adminUser == "admin" && adminPass == "admin" {
+		logger.Println("Admin credentials not set. Please set APP_ADMIN_USER and APP_ADMIN_PASS.")
+	}
 
 	r := http.NewServeMux()
 	r.HandleFunc("GET /", indexHandler)
@@ -65,6 +78,7 @@ func main() {
 	r.HandleFunc("GET /shorts/{videoID}", shortHandler)
 	r.HandleFunc("GET /proxy/{videoID}", proxyHandler)
 	r.HandleFunc("GET /refresh/{videoID}", refreshHandler)
+	r.HandleFunc("GET /cache", cacheHandler)
 	r.HandleFunc("GET /{videoID}", shortHandler)
 
 	r.HandleFunc("POST /download", downloadHandler)

@@ -12,10 +12,9 @@ services:
     cap_add:
         - NET_ADMIN
     env_file:
-      - docker/swag.env
+      - swag/swag.env
     volumes:
-        #- /etc/config/swag:/config
-        - ./docker/fixyoutube.subdomain.conf:/config/nginx/proxy-confs/fixyoutube.subdomain.conf:ro
+        - ./swag/fixyoutube.subdomain.conf:/config/nginx/proxy-confs/fixyoutube.subdomain.conf:ro
     ports:
         - 443:443
         - 80:80

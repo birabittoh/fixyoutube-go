@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,12 +19,17 @@ import (
 const templatesDirectory = "templates/"
 
 var (
-	//go:embed templates/index.html templates/video.html
+	//go:embed templates/index.html templates/video.html templates/cache.html
 	templates     embed.FS
 	indexTemplate = template.Must(template.ParseFS(templates, templatesDirectory+"index.html"))
 	videoTemplate = template.Must(template.New("video.html").Funcs(template.FuncMap{"parseFormat": parseFormat}).ParseFS(templates, templatesDirectory+"video.html"))
+	cacheTemplate = template.Must(template.New("cache.html").ParseFS(templates, templatesDirectory+"cache.html"))
+
 	// userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
 	videoRegex = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
+
+	adminUser string
+	adminPass string
 )
 
 func parseFormat(f rabbitpipe.Format) (res string) {
@@ -198,4 +204,29 @@ func refreshHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/"+videoID, http.StatusFound)
+}
+
+func cacheHandler(w http.ResponseWriter, r *http.Request) {
+	username, password, ok := r.BasicAuth()
+	if !ok || username != adminUser || password != adminPass {
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var videos []rabbitpipe.Video
+	for s := range invidious.RP.GetCachedVideos() {
+		video, err := invidious.RP.GetVideo(s)
+		if err != nil || video == nil {
+			continue
+		}
+		videos = append(videos, *video)
+	}
+
+	err := cacheTemplate.Execute(w, videos)
+	if err != nil {
+		log.Println("cacheHandler ERROR:", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 }
