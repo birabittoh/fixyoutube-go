@@ -32,6 +32,10 @@ var (
 	adminPass string
 )
 
+func defaultError(w http.ResponseWriter, code int) {
+	http.Error(w, http.StatusText(code), code)
+}
+
 func parseFormat(f rabbitpipe.Format) (res string) {
 	isAudio := f.AudioChannels > 0
 
@@ -73,7 +77,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	err := indexTemplate.Execute(w, nil)
 	if err != nil {
 		logger.Error("Failed to fill index template.")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		defaultError(w, http.StatusInternalServerError)
 		return
 	}
 }
@@ -146,6 +150,27 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", "video/mp4")
 	h.Set("Content-Length", strconv.FormatInt(vb.Length, 10))
 	io.Copy(w, vb.Buffer)
+}
+
+func subHandler(w http.ResponseWriter, r *http.Request) {
+	videoID := r.PathValue("videoID")
+	language := r.PathValue("language")
+
+	captions, err := invidious.RP.GetCaptions(videoID, language)
+	if err != nil {
+		logger.Error("Failed to get captions: ", err)
+		defaultError(w, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/vtt")
+	w.Header().Set("Content-Length", strconv.Itoa(len(captions)))
+
+	_, err = w.Write(captions)
+	if err != nil {
+		defaultError(w, http.StatusInternalServerError)
+		return
+	}
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {

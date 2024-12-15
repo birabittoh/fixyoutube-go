@@ -77,6 +77,7 @@ func main() {
 	r.HandleFunc("GET /watch", watchHandler)
 	r.HandleFunc("GET /shorts/{videoID}", shortHandler)
 	r.HandleFunc("GET /proxy/{videoID}", proxyHandler)
+	r.HandleFunc("GET /sub/{videoID}/{language}", subHandler)
 	r.HandleFunc("GET /refresh/{videoID}", refreshHandler)
 	r.HandleFunc("GET /cache", cacheHandler)
 	r.HandleFunc("GET /{videoID}", shortHandler)

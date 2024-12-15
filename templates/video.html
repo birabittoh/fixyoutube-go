@@ -42,6 +42,9 @@
         {{ if gt (len .FormatStreams) 0 }}
         <video style="width: 100%" autoplay controls>
             <source src="{{ (index .FormatStreams 0).URL }}" type="video/mp4" />
+            {{ range .Captions }}
+            <track kind="subtitles" label="{{ .Label }}" src="/sub/{{ $.VideoID }}/{{ .Label }}" srclang="{{ .LanguageCode }}" />
+            {{ end }}
         </video>
         {{ end }}
         <h2>{{ .Title }}</h2>
