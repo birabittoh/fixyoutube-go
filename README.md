@@ -8,10 +8,9 @@ https://github.com/BiRabittoh/FixYouTube/assets/26506860/e1ad5397-41c8-4073-9b3e
 
 ## Instructions
 
-First of all, you should duplicate and fill your `.env` file:
+First of all, you should create your `.env` file:
 ```
 cp .env.example .env
-nano .env
 ```
 
 ### Docker without reverse proxy

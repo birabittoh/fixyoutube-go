@@ -9,13 +9,22 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var logger = logrus.New()
-var buffers = myks.New[VideoBuffer](time.Minute)
-var RP = rabbitpipe.New("")
+var logger *logrus.Logger
+var buffers *myks.KeyStore[VideoBuffer]
+var RP *rabbitpipe.Client
 
 type VideoBuffer struct {
 	Buffer *bytes.Buffer
 	Length int64
+}
+
+func Init(logLevel logrus.Level, instance string) {
+	logger = logrus.New()
+	logger.SetLevel(logLevel)
+
+	buffers = myks.New[VideoBuffer](time.Minute)
+
+	RP = rabbitpipe.New(instance)
 }
 
 func GetVideoURL(video rabbitpipe.Video) string {

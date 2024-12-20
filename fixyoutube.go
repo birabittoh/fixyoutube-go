@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/birabittoh/fixyoutube-go/invidious"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
@@ -60,6 +61,8 @@ func main() {
 		logger.Debug("Debug mode enabled (rate limiting is disabled)")
 		debugSwitch = true
 	}
+
+	invidious.Init(logLevel, os.Getenv("INSTANCE"))
 
 	port := getEnvDefault("PORT", "3000")
 	burstTokens := getEnvDefaultParse("BURST_TOKENS", "3")
