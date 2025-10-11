@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/birabittoh/fixyoutube-go/invidious"
+	"github.com/birabittoh/fixyoutube-go/ytdlp"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
@@ -62,7 +62,7 @@ func main() {
 		debugSwitch = true
 	}
 
-	invidious.Init(logLevel, os.Getenv("INSTANCE"))
+	ytdlp.Init(logLevel)
 
 	port := getEnvDefault("PORT", "3000")
 	burstTokens := getEnvDefaultParse("BURST_TOKENS", "3")
@@ -72,7 +72,7 @@ func main() {
 	adminPass = getEnvDefault("ADMIN_PASS", "admin")
 
 	if adminUser == "admin" && adminPass == "admin" {
-		logger.Println("Admin credentials not set. Please set APP_ADMIN_USER and APP_ADMIN_PASS.")
+		logger.Println("Admin credentials not set. Please set ADMIN_USER and ADMIN_PASS.")
 	}
 
 	r := http.NewServeMux()

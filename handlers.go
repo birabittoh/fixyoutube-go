@@ -9,11 +9,9 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
-	"strings"
 	"text/template"
 
-	"github.com/birabittoh/fixyoutube-go/invidious"
-	"github.com/birabittoh/rabbitpipe"
+	"github.com/birabittoh/fixyoutube-go/ytdlp"
 )
 
 const templatesDirectory = "templates/"
@@ -25,7 +23,6 @@ var (
 	videoTemplate = template.Must(template.New("video.html").Funcs(template.FuncMap{"parseFormat": parseFormat}).ParseFS(templates, templatesDirectory+"video.html"))
 	cacheTemplate = template.Must(template.New("cache.html").ParseFS(templates, templatesDirectory+"cache.html"))
 
-	// userAgentRegex = regexp.MustCompile(`(?i)bot|facebook|embed|got|firefox\/92|firefox\/38|curl|wget|go-http|yahoo|generator|whatsapp|preview|link|proxy|vkshare|images|analyzer|index|crawl|spider|python|cfnetwork|node`)
 	videoRegex = regexp.MustCompile(`(?i)^[a-z0-9_-]{11}$`)
 
 	adminUser string
@@ -36,40 +33,41 @@ func defaultError(w http.ResponseWriter, code int) {
 	http.Error(w, http.StatusText(code), code)
 }
 
-func parseFormat(f rabbitpipe.Format) (res string) {
-	isAudio := f.AudioChannels > 0
+func parseFormat(f ytdlp.Format) (res string) {
+	isAudio := f.AudioChannels > 0 && f.VCodec == "none"
 
 	if isAudio {
-		bitrate, err := strconv.Atoi(f.Bitrate)
-		if err != nil {
-			logger.Error("Failed to convert bitrate to integer.")
-			return
-		}
-		res = strconv.Itoa(bitrate/1000) + "kbps"
+		res = strconv.FormatFloat(f.Bitrate, 'f', 2, 64) + "kbps"
 	} else {
 		res = f.Resolution
+		if res == "" && f.Height > 0 {
+			res = strconv.Itoa(f.Height) + "p"
+		}
 	}
 
-	mime := strings.Split(f.Type, ";")
-	res += " - " + mime[0]
+	res += " - " + f.Ext
 
-	codecs := " (" + strings.Split(mime[1], "\"")[1] + ")"
-
-	if !isAudio {
-		res += fmt.Sprintf(" (%d FPS)", f.FPS)
+	if f.VCodec != "none" && f.ACodec != "none" {
+		res += " (v:" + f.VCodec + " a:" + f.ACodec + ")"
+	} else if f.VCodec != "none" {
+		res += " (" + f.VCodec + ")"
+	} else if f.ACodec != "none" {
+		res += " (" + f.ACodec + ")"
 	}
 
-	res += codecs
+	if !isAudio && f.FPS > 0 {
+		res += fmt.Sprintf(" (%f FPS)", f.FPS)
+	}
+
 	return
 }
 
-func getItag(formats []rabbitpipe.Format, itag string) *rabbitpipe.Format {
+func getItag(formats []ytdlp.Format, itag string) *ytdlp.Format {
 	for _, f := range formats {
 		if f.Itag == itag {
 			return &f
 		}
 	}
-
 	return nil
 }
 
@@ -82,6 +80,20 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type VideoTemplateData struct {
+	VideoID         string
+	Title           string
+	Description     string
+	DescriptionHTML string
+	Author          string
+	AuthorURL       string
+	LengthSeconds   int
+	VideoThumbnails []ytdlp.Thumbnail
+	FormatStreams   []ytdlp.Format
+	AdaptiveFormats []ytdlp.Format
+	Captions        []ytdlp.Caption
+}
+
 func videoHandler(videoID string, w http.ResponseWriter, r *http.Request) {
 	url := "https://www.youtube.com/watch?v=" + videoID
 
@@ -91,20 +103,34 @@ func videoHandler(videoID string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	video, err := invidious.RP.GetVideo(videoID)
+	video, err := ytdlp.GetVideo(videoID)
 	if err != nil || video == nil {
-		logger.Info("Wrong video ID: ", videoID)
+		logger.Info("Wrong video ID: ", videoID, " Error: ", err)
 		http.Error(w, "Wrong video ID.", http.StatusNotFound)
 		return
 	}
 
-	if invidious.GetVideoURL(*video) == "" {
+	if ytdlp.GetVideoURL(*video) == "" {
 		logger.Debug("No URL available. Redirecting.")
 		http.Redirect(w, r, url, http.StatusFound)
 		return
 	}
 
-	err = videoTemplate.Execute(w, video)
+	templateData := VideoTemplateData{
+		VideoID:         video.VideoID,
+		Title:           video.Title,
+		Description:     video.Description,
+		DescriptionHTML: video.Description,
+		Author:          video.Author,
+		AuthorURL:       video.AuthorURL,
+		LengthSeconds:   video.LengthSeconds,
+		VideoThumbnails: video.GetVideoThumbnails(),
+		FormatStreams:   video.GetFormatStreams(),
+		AdaptiveFormats: video.GetAdaptiveFormats(),
+		Captions:        video.GetCaptions(),
+	}
+
+	err = videoTemplate.Execute(w, templateData)
 	if err != nil {
 		logger.Error("Failed to fill video template.")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -133,7 +159,7 @@ func shortHandler(w http.ResponseWriter, r *http.Request) {
 func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	videoID := r.PathValue("videoID")
 
-	vb, s := invidious.ProxyVideoId(videoID)
+	vb, s := ytdlp.ProxyVideoId(videoID)
 	if s != http.StatusOK {
 		logger.Error("proxyHandler() failed. Final code: ", s)
 		http.Error(w, http.StatusText(s), s)
@@ -156,7 +182,7 @@ func subHandler(w http.ResponseWriter, r *http.Request) {
 	videoID := r.PathValue("videoID")
 	language := r.PathValue("language")
 
-	captions, err := invidious.RP.GetCaptions(videoID, language)
+	captions, err := ytdlp.GetCaptions(videoID, language)
 	if err != nil {
 		logger.Error("Failed to get captions: ", err)
 		defaultError(w, http.StatusNotFound)
@@ -192,19 +218,17 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	video, err := invidious.RP.GetVideo(videoID)
+	video, err := ytdlp.GetVideo(videoID)
 	if err != nil || video == nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 
-	format := getItag(video.FormatStreams, itag)
+	allFormats := append(video.GetFormatStreams(), video.GetAdaptiveFormats()...)
+	format := getItag(allFormats, itag)
 	if format == nil {
-		format = getItag(video.AdaptiveFormats, itag)
-		if format == nil {
-			http.Error(w, "not found", http.StatusNotFound)
-			return
-		}
+		http.Error(w, "not found", http.StatusNotFound)
+		return
 	}
 
 	http.Redirect(w, r, format.URL, http.StatusFound)
@@ -222,7 +246,7 @@ func refreshHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	video, err := invidious.RP.GetVideoNoCache(videoID)
+	video, err := ytdlp.GetVideoNoCache(videoID)
 	if err != nil || video == nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
@@ -239,13 +263,25 @@ func cacheHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var videos []rabbitpipe.Video
-	for s := range invidious.RP.GetCachedVideos() {
-		video, err := invidious.RP.GetVideo(s)
+	var videos []VideoTemplateData
+	for s := range ytdlp.GetCachedVideos() {
+		video, err := ytdlp.GetVideo(s)
 		if err != nil || video == nil {
 			continue
 		}
-		videos = append(videos, *video)
+		videos = append(videos, VideoTemplateData{
+			VideoID:         video.VideoID,
+			Title:           video.Title,
+			Description:     video.Description,
+			DescriptionHTML: video.Description,
+			Author:          video.Author,
+			AuthorURL:       video.AuthorURL,
+			LengthSeconds:   video.LengthSeconds,
+			VideoThumbnails: video.GetVideoThumbnails(),
+			FormatStreams:   video.GetFormatStreams(),
+			AdaptiveFormats: video.GetAdaptiveFormats(),
+			Captions:        video.GetCaptions(),
+		})
 	}
 
 	err := cacheTemplate.Execute(w, videos)

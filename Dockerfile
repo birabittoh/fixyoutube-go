@@ -1,8 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.23-alpine AS builder
-
-RUN apk add --no-cache build-base
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /build
 
@@ -12,19 +10,22 @@ RUN go mod download
 
 # Transfer source code
 COPY templates ./templates
-COPY invidious ./invidious
+COPY ytdlp ./ytdlp
 COPY *.go ./
 
 # Build
-RUN CGO_ENABLED=0 go build -trimpath -o /dist/app
+RUN CGO_ENABLED=0 go build -trimpath -o /dist/fixyoutube-go
 
 # Test
 FROM build-stage AS run-test-stage
 RUN go test -v ./...
 
-FROM scratch AS build-release-stage
+FROM alpine:3 AS build-release-stage
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /dist /
+RUN apk add --no-cache yt-dlp
 
-ENTRYPOINT ["/app"]
+WORKDIR /app
+
+COPY --from=builder /dist .
+
+ENTRYPOINT ["/app/fixyoutube-go"]

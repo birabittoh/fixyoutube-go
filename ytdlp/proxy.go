@@ -1,12 +1,10 @@
-package invidious
+package ytdlp
 
 import (
 	"bytes"
 	"io"
 	"net/http"
 	"time"
-
-	"github.com/birabittoh/rabbitpipe"
 )
 
 const MaxSizeBytes = int64(20 * 1024 * 1024)
@@ -18,13 +16,13 @@ func urlToBuffer(url string) (*VideoBuffer, int) {
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		logger.Error(err) // bad request
+		logger.Error(err)
 		return nil, http.StatusInternalServerError
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logger.Error(err) // request failed
+		logger.Error(err)
 		return nil, http.StatusGone
 	}
 
@@ -52,10 +50,9 @@ func urlToBuffer(url string) (*VideoBuffer, int) {
 	return &VideoBuffer{b, l}, http.StatusOK
 }
 
-func getBuffer(video rabbitpipe.Video) (*VideoBuffer, int) {
+func getBuffer(video Video) (*VideoBuffer, int) {
 	vb, err := buffers.Get(video.VideoID)
 	if err != nil {
-		// cached buffer not found
 		vb, s := urlToBuffer(GetVideoURL(video))
 		if vb != nil {
 			if s == http.StatusOK && vb.Length > 0 {
@@ -66,12 +63,11 @@ func getBuffer(video rabbitpipe.Video) (*VideoBuffer, int) {
 		return nil, s
 	}
 
-	// cached buffer found
 	return vb.Clone(), http.StatusOK
 }
 
 func ProxyVideoId(videoID string) (*VideoBuffer, int) {
-	video, err := RP.GetVideo(videoID)
+	video, err := GetVideo(videoID)
 	if err != nil {
 		logger.Info("Cannot get video: https://youtu.be/", videoID)
 		return nil, http.StatusBadRequest
